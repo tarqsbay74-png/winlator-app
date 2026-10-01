@@ -22,7 +22,6 @@ add_library(vortekrenderer SHARED
             src/timeline_semaphore.c)
 
 target_link_libraries(vortekrenderer
-                      adrenotools
                       winlator
                       log
                       android)
