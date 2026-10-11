@@ -31,7 +31,6 @@
     <string name="binding_down">Binding Down</string>
     <string name="binding_left">Binding Left</string>
     <string name="overlay_opacity">Overlay Opacity</string>
-    <string name="opacity">Opacity</string>
     <string name="profile">Profile</string>
     <string name="select_profile">Select Profile</string>
     <string name="profile_name">Profile Name</string>
@@ -73,6 +72,7 @@
     <string name="offscreen_rendering_mode">Offscreen Rendering Mode</string>
     <string name="enable_strict_shader_math">Enable Strict Shader Math</string>
     <string name="video_memory_size">Video Memory Size</string>
+    <string name="show_fps">Show FPS</string>
     <string name="none">None</string>
     <string name="custom_text">Custom Text</string>
     <string name="icon">Icon</string>
@@ -244,8 +244,9 @@
     <string name="removing_files">Removing Files...</string>
     <string name="disable_mouse_input">Disable Mouse Input</string>
     <string name="move_cursor_to_touchpoint">Move Cursor to Touchpoint</string>
+    <string name="sync_every_frame">Sync every frame</string>
     <string name="dpi_font_size">DPI (Font Size)</string>
-    <string name="gamepad_model">Gamepad Model</string>
+    <string name="preferred_input_api">Preferred Input API</string>
     <string name="file_manager">File Manager</string>
     <string name="documents">Documents</string>
     <string name="items">items</string>
@@ -291,10 +292,6 @@
     <string name="install_component">Install Component</string>
     <string name="open_android_browser_from_wine">Open Android Browser from Wine</string>
     <string name="use_android_clipboard_on_Wine">Use Android Clipboard on Wine</string>
-    <string name="enable_background_protection">Enable Background Protection</string>
-    <string name="enable_background_protection_tooltip">Keep container alive in background or when device locked, but processes\'re paused.</string>
-    <string name="enable_background_wakelock">Enable wakelock when the device is locked</string>
-    <string name="enable_background_wakelock_tooltip">Avoid issues when returning after unlocking the device.</string>
     <string name="capture_pointer_on_external_mouse">Capture pointer on external mouse</string>
     <string name="there_are_no_items_to_download">There are no items to download</string>
     <string name="enable_direct_rendering">Enable direct rendering</string>
@@ -321,41 +318,4 @@
     <string name="pip_mode">PiP Mode</string>
     <string name="adrenotools_driver" translatable="false">Adrenotools Driver</string>
     <string name="resource_memory_type">Resource Memory Type</string>
-    <string name="zero_no_limit">0 (No limit)</string>
-    <string name="custom">Custom</string>
-    <string name="native_resolution">Native</string>
-    <string name="minimal">Minimal</string>
-    <string name="trace">Trace</string>
-    <string name="builtin_wine">Builtin (Wine)</string>
-    <string name="native_windows">Native (Windows)</string>
-    <string name="light">Light</string>
-    <string name="dark">Dark</string>
-    <string name="image">Image</string>
-    <string name="solid_color">Solid Color</string>
-    <string name="startup_selection_normal">Normal (Load all services)</string>
-    <string name="startup_selection_essential">Essential (Load only essential services)</string>
-    <string name="startup_selection_aggressive">Aggressive (Load minimal services)</string>
-    <string name="both">Both</string>
-    <string name="low_latency">Low Latency</string>
-    <string name="power_saving">Power Saving</string>
-    <string name="player">Player</string>
-    <string name="gamepad">Gamepad</string>
-    <string name="enable_vibration">Enable Vibration</string>
-    <string name="mode">Mode</string>
-    <string name="external_controller">External Controller</string>
-    <string name="controls_profile">Controls Profile</string>
-    <string name="do_you_want_to_reset_configurations">Do you want to reset the configurations?</string>
-    <string name="the_settings_have_been_changed_do_you_want_to_restart_the_app">The settings have been changed. Do you want to restart the app?</string>
-    <string name="hud_mode">HUD Mode</string>
-    <string name="simple_fps">Simple (FPS)</string>
-    <string name="full">Full</string>
-    <string name="ddraw_wrapper" translatable="false">DDraw Wrapper</string>
-    <string name="renderer">Renderer</string>
-    <string name="default_no_override">Default (No override)</string>
-    <string name="fgs_notification_channel_desc">Keeps Winlator running in the background so a wine session is not interrupted by Android\'s background process management.</string>
-    <string name="fgs_notification_content_container_background">A container session is running in the background</string>
-    <string name="fgs_notification_content_container_foreground">There is a container session running</string>
-    <string name="fgs_notification_content_else">Winlator is running in the background</string>
-    <string name="save_mem_on_run_from_steam">Save memory on run from Steam</string>
-    <string name="present_mode">Present Mode</string>
 </resources>

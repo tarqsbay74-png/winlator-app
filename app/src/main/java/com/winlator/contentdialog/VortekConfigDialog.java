@@ -36,22 +36,19 @@ public class VortekConfigDialog extends ContentDialog {
 
         KeyValueSet config = new KeyValueSet(anchor.getTag());
 
-        String exposedDeviceExtensionsVal = config.get("exposedDeviceExtensions", "all");
-        if (exposedDeviceExtensionsVal.contains("|")) exposedDeviceExtensionsVal = "all";
-
+        final String exposedDeviceExtensionsVal = config.get("exposedDeviceExtensions", "all");
         if (exposedDeviceExtensionsVal.equals("all")) {
             mscbExposedExtensions.setSelectedItems(deviceExtensions);
         }
         else if (!exposedDeviceExtensionsVal.isEmpty()) {
-            String[] selectedItems = exposedDeviceExtensionsVal.split(":");
-            mscbExposedExtensions.setSelectedItems(selectedItems.length > 1 ? selectedItems : deviceExtensions);
+            mscbExposedExtensions.setSelectedItems(exposedDeviceExtensionsVal.split("\\|"));
         }
 
         String adrenotoolsDriver = config.get("adrenotoolsDriver");
         GeneralComponents.initViews(GeneralComponents.Type.ADRENOTOOLS_DRIVER, findViewById(R.id.AdrenotoolsDriverToolbox), sAdrenotoolsDriver, adrenotoolsDriver, "System");
 
         AppUtils.setSpinnerSelectionFromValue(sVkMaxVersion, config.get("vkMaxVersion", DEFAULT_VK_MAX_VERSION));
-        AppUtils.setSpinnerSelectionFromMemorySize(sMaxDeviceMemory, config.get("maxDeviceMemory", "0"));
+        AppUtils.setSpinnerSelectionFromNumber(sMaxDeviceMemory, config.get("maxDeviceMemory", String.valueOf(VortekRendererComponent.MAX_DEVICE_MEMORY)));
         AppUtils.setSpinnerSelectionFromNumber(sImageCacheSize, config.get("imageCacheSize", String.valueOf(VortekRendererComponent.IMAGE_CACHE_SIZE)));
         sResourceMemoryType.setSelection(config.getInt("resourceMemoryType"));
 
@@ -59,7 +56,7 @@ public class VortekConfigDialog extends ContentDialog {
             KeyValueSet newConfig = new KeyValueSet();
             newConfig.put("adrenotoolsDriver", sAdrenotoolsDriver.getSelectedItem());
             newConfig.put("vkMaxVersion", StringUtils.parseNumber(sVkMaxVersion.getSelectedItem(), "0"));
-            newConfig.put("maxDeviceMemory", StringUtils.parseMemorySize(sMaxDeviceMemory.getSelectedItem()));
+            newConfig.put("maxDeviceMemory", StringUtils.parseNumber(sMaxDeviceMemory.getSelectedItem()));
             newConfig.put("imageCacheSize", StringUtils.parseNumber(sImageCacheSize.getSelectedItem()));
             newConfig.put("resourceMemoryType", sResourceMemoryType.getSelectedItemPosition());
 
@@ -68,18 +65,9 @@ public class VortekConfigDialog extends ContentDialog {
                 if (selectedItems.length == deviceExtensions.length) {
                     newConfig.put("exposedDeviceExtensions", "all");
                 }
-                else newConfig.put("exposedDeviceExtensions", String.join(":", selectedItems));
+                else newConfig.put("exposedDeviceExtensions", String.join("|", selectedItems));
             }
             anchor.setTag(newConfig.toString());
         });
-    }
-
-    public static boolean isRequireRestart(String oldGraphicsDriverConfig, String newGraphicsDriverConfig) {
-        if (!oldGraphicsDriverConfig.equals(newGraphicsDriverConfig)) {
-            String oldAdrenotoolsDriver = (new KeyValueSet(oldGraphicsDriverConfig)).get("adrenotoolsDriver");
-            String newAdrenotoolsDriver = (new KeyValueSet(newGraphicsDriverConfig)).get("adrenotoolsDriver");
-            return !oldAdrenotoolsDriver.isEmpty() && !newAdrenotoolsDriver.isEmpty() && !newAdrenotoolsDriver.equals(oldAdrenotoolsDriver);
-        }
-        else return false;
     }
 }

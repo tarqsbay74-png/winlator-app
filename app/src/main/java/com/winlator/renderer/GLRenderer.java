@@ -3,7 +3,6 @@ package com.winlator.renderer;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.opengl.EGL14;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 
@@ -12,7 +11,6 @@ import androidx.core.graphics.ColorUtils;
 import com.winlator.R;
 import com.winlator.core.Bitmask;
 import com.winlator.core.Callback;
-import com.winlator.core.GPUHelper;
 import com.winlator.core.ImageUtils;
 import com.winlator.math.Mathf;
 import com.winlator.math.XForm;
@@ -24,7 +22,6 @@ import com.winlator.xserver.Cursor;
 import com.winlator.xserver.Decoration;
 import com.winlator.xserver.Drawable;
 import com.winlator.xserver.Pointer;
-import com.winlator.xserver.ScreenInfo;
 import com.winlator.xserver.Window;
 import com.winlator.xserver.WindowAttributes;
 import com.winlator.xserver.WindowManager;
@@ -59,6 +56,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     private int cursorBackColor = 0xffffff;
     private int cursorForeColor = 0x000000;
     private boolean screenOffsetYRelativeToCursor = false;
+    private String[] unviewableWMClasses = null;
     private float magnifierZoom = 1.0f;
     protected short surfaceWidth;
     protected short surfaceHeight;
@@ -82,7 +80,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        GPUHelper.setGlobalEGLContext();
+        GPUImage.checkIsSupported();
 
         GLES20.glFrontFace(GLES20.GL_CCW);
         GLES20.glDisable(GLES20.GL_CULL_FACE);
@@ -93,8 +91,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         GLES20.glEnable(GLES20.GL_BLEND);
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-        EGL14.eglSwapInterval(EGL14.eglGetCurrentDisplay(), 0);
     }
 
     @Override
@@ -195,18 +191,18 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     private void renderCursorDrawable(Drawable drawable, int x, int y) {
         synchronized (drawable.renderLock) {
             Texture texture = drawable.getTexture();
-            texture.updateFromDrawable();
+            texture.updateFromDrawable(drawable);
 
             XForm.set(tmpXForm1, x, y, drawable.width * cursorScale, drawable.height * cursorScale);
             XForm.multiply(tmpXForm1, tmpXForm1, tmpXForm2);
 
-            cursorMaterial.setUniformColor(cursorMaterial.uniforms.backColor, cursorBackColor);
-            cursorMaterial.setUniformColor(cursorMaterial.uniforms.foreColor, cursorForeColor);
+            cursorMaterial.setUniformColor("backColor", cursorBackColor);
+            cursorMaterial.setUniformColor("foreColor", cursorForeColor);
 
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
-            cursorMaterial.setUniformInt(cursorMaterial.uniforms.texture, 0);
-            cursorMaterial.setUniformFloatArray(cursorMaterial.uniforms.xform, tmpXForm1);
+            cursorMaterial.setUniformInt("texture", 0);
+            cursorMaterial.setUniformFloatArray("xform", tmpXForm1);
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quadVertices.count());
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         }
@@ -215,7 +211,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     private void renderWindowDrawable(Drawable drawable, int x, int y, boolean transparent, FullscreenTransformation fullscreenTransformation) {
         synchronized (drawable.renderLock) {
             Texture texture = drawable.getTexture();
-            texture.updateFromDrawable();
+            texture.updateFromDrawable(drawable);
 
             if (fullscreenTransformation != null) {
                 XForm.set(tmpXForm1, fullscreenTransformation.x, fullscreenTransformation.y, fullscreenTransformation.width, fullscreenTransformation.height);
@@ -223,12 +219,12 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
             else XForm.set(tmpXForm1, x, y, drawable.width, drawable.height);
 
             XForm.multiply(tmpXForm1, tmpXForm1, tmpXForm2);
+
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
-            windowMaterial.setUniformInt(windowMaterial.uniforms.texture, 0);
-            windowMaterial.setUniformFloat(windowMaterial.uniforms.noAlpha, !transparent ? 1.0f : 0.0f);
-            windowMaterial.setUniformFloatArray(windowMaterial.uniforms.xform, tmpXForm1);
-            windowMaterial.setUniformBool(windowMaterial.uniforms.flipY, texture.isFlipY());
+            windowMaterial.setUniformInt("texture", 0);
+            windowMaterial.setUniformFloat("noAlpha", !transparent ? 1.0f : 0.0f);
+            windowMaterial.setUniformFloatArray("xform", tmpXForm1);
 
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quadVertices.count());
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
@@ -237,7 +233,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     private void renderWindows() {
         windowMaterial.use();
-        windowMaterial.setUniformVec2(windowMaterial.uniforms.viewSize, xServer.screenInfo.width, xServer.screenInfo.height);
+        windowMaterial.setUniformVec2("viewSize", xServer.screenInfo.width, xServer.screenInfo.height);
         quadVertices.bind(windowMaterial.programId);
 
         try (XLock lock = xServer.lock(XServer.Lockable.DRAWABLE_MANAGER)) {
@@ -253,7 +249,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     private void renderCursor() {
         cursorMaterial.use();
-        cursorMaterial.setUniformVec2(cursorMaterial.uniforms.viewSize, xServer.screenInfo.width, xServer.screenInfo.height);
+        cursorMaterial.setUniformVec2("viewSize", xServer.screenInfo.width, xServer.screenInfo.height);
         quadVertices.bind(cursorMaterial.programId);
 
         try (XLock lock = xServer.lock(XServer.Lockable.DRAWABLE_MANAGER)) {
@@ -293,35 +289,50 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     private void collectRenderableWindows(Window window, int x, int y) {
         if (!window.isRenderable()) return;
-        if (window != xServer.windowManager.rootWindow && window.attributes.isViewable()) {
-            Window parent = window.getParent();
-            boolean transparent = window.attributes.isTransparent() || parent.attributes.isTransparent() || parent.isLayered() || window.isLayered();
+        if (window != xServer.windowManager.rootWindow) {
+            boolean viewable = true;
 
-            if (forceWindowsFullscreen) {
-                short width = window.getWidth();
-                short height = window.getHeight();
-                FullscreenTransformation fullscreenTransformation = null;
-
-                boolean inBounds = width >= ScreenInfo.MIN_WIDTH && height >= ScreenInfo.MIN_HEIGHT && width < xServer.screenInfo.width && height < xServer.screenInfo.height;
-                if (window.getType() == Window.Type.NORMAL && inBounds && window.hasNoDecorations()) {
-                    fullscreenTransformation = window.getFullscreenTransformation();
-                    if (fullscreenTransformation == null) window.setFullscreenTransformation(fullscreenTransformation = new FullscreenTransformation(window));
-                    fullscreenTransformation.update(xServer.screenInfo, window.getWidth(), window.getHeight());
-
-                    if (parent != xServer.windowManager.rootWindow && parent.getChildCount() == 1 && parent.hasDecoration(Decoration.BORDER) && parent.hasDecoration(Decoration.TITLE)) {
-                        FullscreenTransformation parentFullscreenTransformation = parent.getFullscreenTransformation();
-                        if (parentFullscreenTransformation == null) parent.setFullscreenTransformation(parentFullscreenTransformation = new FullscreenTransformation(parent));
-                        parentFullscreenTransformation.update(xServer.screenInfo, parent.getWidth(), parent.getHeight());
-
-                        removeRenderableWindow(parent);
+            if (unviewableWMClasses != null) {
+                String wmClass = window.getClassName();
+                for (String unviewableWMClass : unviewableWMClasses) {
+                    if (wmClass.contains(unviewableWMClass)) {
+                        if (window.attributes.isEnabled()) window.disableAllDescendants();
+                        viewable = false;
+                        break;
                     }
-                    else parent.setFullscreenTransformation(null);
                 }
-                else window.setFullscreenTransformation(null);
-
-                renderableWindows.add(new RenderableWindow(window.getContent(), x, y, transparent, fullscreenTransformation));
             }
-            else renderableWindows.add(new RenderableWindow(window.getContent(), x, y, transparent, null));
+
+            if (viewable) {
+                Window parent = window.getParent();
+                boolean transparent = window.attributes.isTransparent() || parent.attributes.isTransparent() || parent.isLayered() || window.isLayered();
+
+                if (forceWindowsFullscreen) {
+                    short width = window.getWidth();
+                    short height = window.getHeight();
+                    FullscreenTransformation fullscreenTransformation = null;
+
+                    boolean inBounds = width >= 320 && height >= 200 && width < xServer.screenInfo.width && height < xServer.screenInfo.height;
+                    if (window.getType() == Window.Type.NORMAL && inBounds && window.hasNoDecorations()) {
+                        fullscreenTransformation = window.getFullscreenTransformation();
+                        if (fullscreenTransformation == null) window.setFullscreenTransformation(fullscreenTransformation = new FullscreenTransformation(window));
+                        fullscreenTransformation.update(xServer.screenInfo, window.getWidth(), window.getHeight());
+
+                        if (parent != xServer.windowManager.rootWindow && parent.getChildCount() == 1 && parent.hasDecoration(Decoration.BORDER) && parent.hasDecoration(Decoration.TITLE)) {
+                            FullscreenTransformation parentFullscreenTransformation = parent.getFullscreenTransformation();
+                            if (parentFullscreenTransformation == null) parent.setFullscreenTransformation(parentFullscreenTransformation = new FullscreenTransformation(parent));
+                            parentFullscreenTransformation.update(xServer.screenInfo, parent.getWidth(), parent.getHeight());
+
+                            removeRenderableWindow(parent);
+                        }
+                        else parent.setFullscreenTransformation(null);
+                    }
+                    else window.setFullscreenTransformation(null);
+
+                    renderableWindows.add(new RenderableWindow(window.getContent(), x, y, transparent, fullscreenTransformation));
+                }
+                else renderableWindows.add(new RenderableWindow(window.getContent(), x, y, transparent, null));
+            }
         }
 
         if (window.attributes.isRenderSubwindows()) {
@@ -393,6 +404,14 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         this.forceWindowsFullscreen = forceWindowsFullscreen;
     }
 
+    public String[] getUnviewableWMClasses() {
+        return unviewableWMClasses;
+    }
+
+    public void setUnviewableWMClasses(String... unviewableWMNames) {
+        this.unviewableWMClasses = unviewableWMNames;
+    }
+
     public boolean isFullscreen() {
         return fullscreen;
     }
@@ -430,7 +449,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         xServerView.queueEvent(() -> {
             synchronized (drawable.renderLock) {
                 Texture texture = drawable.getTexture();
-                texture.updateFromDrawable();
+                texture.updateFromDrawable(drawable);
 
                 int[] framebufferSize = ImageUtils.getScaledSize(drawable.width, drawable.height, 0, 256);
 
@@ -444,12 +463,11 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
                 ScreenMaterial material = new ScreenMaterial();
                 material.use();
-                material.setUniformBool(material.uniforms.flipY, texture.isFlipY());
                 quadVertices.bind(material.programId);
 
                 GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
-                material.setUniformInt(material.uniforms.screenTexture, 0);
+                material.setUniformInt("screenTexture", 0);
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quadVertices.count());
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
                 quadVertices.disable();

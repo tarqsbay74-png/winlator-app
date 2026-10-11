@@ -106,69 +106,13 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/gamepad_model" />
+                        android:text="@string/preferred_input_api" />
 
                     <Spinner
                         style="@style/ComboBox"
-                        android:id="@+id/SGamepadModel"
-                        android:layout_width="match_parent" />
-
-                    <LinearLayout
+                        android:id="@+id/SPreferredInputApi"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/player"
-                            android:layout_marginRight="8dp" />
-
-                        <LinearLayout
-                            style="@style/Toolbox">
-
-                            <LinearLayout
-                                android:id="@+id/LLGamepadPlayer"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal">
-
-                                <ImageView
-                                    style="@style/ListMenuButton"
-                                    android:layout_width="40dp"
-                                    android:layout_height="40dp"
-                                    android:src="@drawable/gamepad_player_1" />
-
-                                <ImageView
-                                    style="@style/ListMenuButton"
-                                    android:layout_width="40dp"
-                                    android:layout_height="40dp"
-                                    android:src="@drawable/gamepad_player_2" />
-
-                                <ImageView
-                                    style="@style/ListMenuButton"
-                                    android:layout_width="40dp"
-                                    android:layout_height="40dp"
-                                    android:src="@drawable/gamepad_player_3" />
-
-                                <ImageView
-                                    style="@style/ListMenuButton"
-                                    android:layout_width="40dp"
-                                    android:layout_height="40dp"
-                                    android:src="@drawable/gamepad_player_4" />
-                            </LinearLayout>
-
-                            <View style="@style/VerticalLine" />
-
-                            <ImageView
-                                android:id="@+id/BTResetGamepadPlayerConfigs"
-                                style="@style/ListMenuButton"
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
-                                android:src="@drawable/icon_reset" />
-                        </LinearLayout>
-                    </LinearLayout>
+                        android:entries="@array/preferred_input_api_entries" />
                 </LinearLayout>
 
                 <TextView
@@ -253,31 +197,6 @@
                         android:layout_width="match_parent"
                         android:entries="@array/language_entries" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/theme" />
-
-                    <RadioGroup
-                        android:id="@+id/RGAppTheme"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                        <RadioButton
-                            android:id="@+id/RBLight"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/light" />
-
-                        <RadioButton
-                            android:id="@+id/RBDark"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/dark" />
-                    </RadioGroup>
-
                     <CheckBox
                         android:id="@+id/CBOpenAndroidBrowserFromWine"
                         android:layout_width="wrap_content"
@@ -290,31 +209,6 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/use_android_clipboard_on_Wine"
-                        android:layout_marginTop="8dp" />
-
-                    <CheckBox
-                        android:id="@+id/CBEnableBackgroundProtection"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="@string/enable_background_protection"
-                        android:tooltipText="@string/enable_background_protection_tooltip" />
-
-                    <CheckBox
-                        android:id="@+id/CBEnableBackgroundWakelock"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginStart="24dp"
-                        android:visibility="gone"
-                        android:text="@string/enable_background_wakelock"
-                        android:tooltipText="@string/enable_background_wakelock_tooltip" />
-
-                    <CheckBox
-                        android:id="@+id/CBSaveMemOnRunFromSteam"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/save_mem_on_run_from_steam"
                         android:layout_marginTop="8dp" />
                 </LinearLayout>
 

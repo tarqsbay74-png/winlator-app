@@ -48,7 +48,6 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
 
     @Override
     public void onCreate(Bundle bundle) {
-        AppUtils.setActivityTheme(this);
         super.onCreate(bundle);
         AppUtils.hideSystemUI(this);
         setContentView(R.layout.controls_editor_activity);
@@ -209,14 +208,6 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         });
         sbScale.setValue(element.getScale() * 100);
 
-        SeekBar sbOpacity = view.findViewById(R.id.SBOpacity);
-        sbOpacity.setOnValueChangeListener((seekBar, value) -> {
-            element.setOpacity(value / 100.0f);
-            profile.save();
-            inputControlsView.invalidate();
-        });
-        sbOpacity.setValue(element.getOpacity() * 100);
-
         CheckBox cbToggleSwitch = view.findViewById(R.id.CBToggleSwitch);
         cbToggleSwitch.setChecked(element.isToggleSwitch());
         cbToggleSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -266,9 +257,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                ControlElement.Type newType = ControlElement.Type.values()[position];
-                if (newType == element.getType()) return;
-                element.setType(newType);
+                element.setType(ControlElement.Type.values()[position]);
                 profile.save();
                 callback.run();
                 inputControlsView.invalidate();

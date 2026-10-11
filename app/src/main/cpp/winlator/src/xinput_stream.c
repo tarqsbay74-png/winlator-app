@@ -170,7 +170,8 @@ Java_com_winlator_xconnector_XInputStream_available(jlong nativePtr) {
 }
 
 JNIEXPORT jint JNICALL
-Java_com_winlator_xconnector_XInputStream_readMoreData(jlong nativePtr, jboolean canReceiveAncillaryMessages) {
+Java_com_winlator_xconnector_XInputStream_readMoreData(JNIEnv *env, jobject obj,
+                                                       jlong nativePtr, jboolean canReceiveAncillaryMessages) {
     return XInputStream_readMoreData((XInputStream*)nativePtr, canReceiveAncillaryMessages);
 }
 
@@ -191,6 +192,6 @@ Java_com_winlator_xconnector_XInputStream_getAncillaryFd(jlong nativePtr) {
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_xconnector_XInputStream_destroy(jlong nativePtr) {
+Java_com_winlator_xconnector_XInputStream_destroy(JNIEnv *env, jclass obj, jlong nativePtr) {
     XInputStream_destroy((XInputStream*)nativePtr);
 }

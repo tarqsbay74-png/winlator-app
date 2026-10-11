@@ -3,17 +3,16 @@ package com.winlator.renderer.material;
 import android.graphics.Color;
 import android.opengl.GLES20;
 
-public abstract class ShaderMaterial {
+import androidx.collection.ArrayMap;
+
+public class ShaderMaterial {
     private static final float INV_255 = 1.0f / 255.0f;
     public int programId;
+    private final ArrayMap<String, Integer> uniforms = new ArrayMap<>();
 
-    public static class Uniform {
-        public final String name;
-        public int location = -1;
-
-        public Uniform(String name) {
-            this.name = name;
-        }
+    public void setUniformNames(String... names) {
+        uniforms.clear();
+        for (String name : names) uniforms.put(name, -1);
     }
 
     protected static int compileShaders(String vertexShader, String fragmentShader) {
@@ -21,10 +20,8 @@ public abstract class ShaderMaterial {
         vertexShader = vertexShader.substring(0, beginIndex) +
             "vec2 applyXForm(vec2 p, float xform[6]) {\n" +
                 "return vec2(xform[0] * p.x + xform[2] * p.y + xform[4], xform[1] * p.x + xform[3] * p.y + xform[5]);\n" +
-            "}\n" + vertexShader.substring(beginIndex);
-
-        vertexShader = "#version 300 es\n" + vertexShader;
-        fragmentShader = "#version 300 es\n" + fragmentShader;
+            "}\n" +
+        vertexShader.substring(beginIndex);
 
         int programId = GLES20.glCreateProgram();
         int[] compiled = new int[1];
@@ -67,13 +64,19 @@ public abstract class ShaderMaterial {
     public void use() {
         if (programId == 0) programId = compileShaders(getVertexShader(), getFragmentShader());
         GLES20.glUseProgram(programId);
+
+        for (int i = 0; i < uniforms.size(); i++) {
+            int location = uniforms.valueAt(i);
+            if (location == -1) {
+                String name = uniforms.keyAt(i);
+                uniforms.put(name, GLES20.glGetUniformLocation(programId, name));
+            }
+        }
     }
 
-    private int getUniformLocation(Uniform uniform) {
-        if (uniform.location != -1) return uniform.location;
-        int location = programId != 0 ? GLES20.glGetUniformLocation(programId, uniform.name) : -1;
-        uniform.location = location;
-        return location;
+    public int getUniformLocation(String name) {
+        Integer location = uniforms.get(name);
+        return location != null ? location : -1;
     }
 
     public void destroy() {
@@ -81,32 +84,28 @@ public abstract class ShaderMaterial {
         programId = 0;
     }
 
-    public void setUniformColor(Uniform uniform, int color) {
-        int location = getUniformLocation(uniform);
+    public void setUniformColor(String uniformName, int color) {
+        int location = getUniformLocation(uniformName);
         if (location != -1) GLES20.glUniform3f(location, Color.red(color) * INV_255, Color.green(color) * INV_255, Color.blue(color) * INV_255);
     }
 
-    public void setUniformFloat(Uniform uniform, float value) {
-        int location = getUniformLocation(uniform);
+    public void setUniformFloat(String uniformName, float value) {
+        int location = getUniformLocation(uniformName);
         if (location != -1) GLES20.glUniform1f(location, value);
     }
 
-    public void setUniformFloatArray(Uniform uniform, float[] values) {
-        int location = getUniformLocation(uniform);
+    public void setUniformFloatArray(String uniformName, float[] values) {
+        int location = getUniformLocation(uniformName);
         if (location != -1) GLES20.glUniform1fv(location, values.length, values, 0);
     }
 
-    public void setUniformInt(Uniform uniform, int value) {
-        int location = getUniformLocation(uniform);
+    public void setUniformInt(String uniformName, int value) {
+        int location = getUniformLocation(uniformName);
         if (location != -1) GLES20.glUniform1i(location, value);
     }
 
-    public void setUniformBool(Uniform uniform, boolean value) {
-        setUniformInt(uniform, value ? 1 : 0);
-    }
-
-    public void setUniformVec2(Uniform uniform, float x, float y) {
-        int location = getUniformLocation(uniform);
+    public void setUniformVec2(String uniformName, float x, float y) {
+        int location = getUniformLocation(uniformName);
         if (location != -1) GLES20.glUniform2f(location, x, y);
     }
 }

@@ -5,7 +5,6 @@ import android.view.View;
 import android.widget.Spinner;
 
 import com.winlator.R;
-import com.winlator.container.DXWrappers;
 import com.winlator.core.AppUtils;
 import com.winlator.core.DefaultVersion;
 import com.winlator.core.EnvVars;
@@ -29,12 +28,10 @@ public class DXVKConfigDialog extends ContentDialog {
         final Spinner sFramerate = findViewById(R.id.SFramerate);
         final Spinner sMaxDeviceMemory = findViewById(R.id.SMaxDeviceMemory);
         final Spinner sCustomDevice = findViewById(R.id.SCustomDevice);
-        final Spinner sDDrawWrapper = findViewById(R.id.SDDrawWrapper);
 
         KeyValueSet config = new KeyValueSet(anchor.getTag());
         AppUtils.setSpinnerSelectionFromIdentifier(sFramerate, config.get("framerate", "0"));
-        AppUtils.setSpinnerSelectionFromMemorySize(sMaxDeviceMemory, config.get("maxDeviceMemory", "0"));
-        AppUtils.setSpinnerSelectionFromIdentifier(sDDrawWrapper, config.get("ddrawWrapper", DXWrappers.WINED3D));
+        AppUtils.setSpinnerSelectionFromNumber(sMaxDeviceMemory, config.get("maxDeviceMemory", "0"));
 
         String version = config.get("version");
         String defaultVersion = DefaultVersion.DXVK(graphicsDriver);
@@ -54,12 +51,9 @@ public class DXVKConfigDialog extends ContentDialog {
 
         setOnConfirmCallback(() -> {
             KeyValueSet newConfig = new KeyValueSet();
-            newConfig.put("version", sVersion.getSelectedItem().toString());
+            newConfig.put("version", StringUtils.parseNumber(sVersion.getSelectedItem()));
             newConfig.put("framerate", StringUtils.parseNumber(sFramerate.getSelectedItem()));
-            newConfig.put("maxDeviceMemory", StringUtils.parseMemorySize(sMaxDeviceMemory.getSelectedItem()));
-
-            String ddrawWrapper = StringUtils.parseIdentifier(sDDrawWrapper.getSelectedItem());
-            if (!ddrawWrapper.equals(DXWrappers.WINED3D)) newConfig.put("ddrawWrapper", ddrawWrapper);
+            newConfig.put("maxDeviceMemory", StringUtils.parseNumber(sMaxDeviceMemory.getSelectedItem()));
 
             GPUCardAdapter.GPUCard gpuCard = (GPUCardAdapter.GPUCard)sCustomDevice.getSelectedItem();
             if (gpuCard.deviceId > 0) {
@@ -71,23 +65,13 @@ public class DXVKConfigDialog extends ContentDialog {
     }
 
     public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars) {
-        if (config.get("version").contains("async")) envVars.put("DXVK_ASYNC", "1");
         envVars.put("DXVK_STATE_CACHE_PATH", RootFS.getDosUserCachePath());
         envVars.put("DXVK_LOG_LEVEL", "none");
 
         File rootDir = RootFS.find(context).getRootDir();
         File dxvkConfigFile = new File(rootDir, RootFS.USER_CONFIG_PATH+"/dxvk.conf");
 
-        FileUtils.delete(dxvkConfigFile);
-        String content = getDXVKConfigContent(config);
-        if (FileUtils.writeString(dxvkConfigFile, content)) {
-            envVars.put("DXVK_CONFIG_FILE", RootFS.getDosUserConfigPath()+"\\dxvk.conf");
-        }
-    }
-
-    private static String getDXVKConfigContent(KeyValueSet config) {
         String content = "";
-
         String maxDeviceMemory = config.get("maxDeviceMemory");
         if (!maxDeviceMemory.isEmpty() && !maxDeviceMemory.equals("0")) {
             content += "dxgi.maxDeviceMemory = "+maxDeviceMemory+"\n";
@@ -113,11 +97,11 @@ public class DXVKConfigDialog extends ContentDialog {
             content += "d3d9.customDeviceDesc = \""+parts[2]+"\"\n";
         }
 
-        content += "d3d11.constantBufferRangeCheck = \"True\"\n\n";
+        content += "d3d11.constantBufferRangeCheck = \"True\"\n";
 
-        content += "[GTA5.exe]\n";
-        content += "dxgi.maxDeviceMemory = 512\n";
-        content += "dxgi.maxSharedMemory = 512\n";
-        return content;
+        FileUtils.delete(dxvkConfigFile);
+        if (FileUtils.writeString(dxvkConfigFile, content)) {
+            envVars.put("DXVK_CONFIG_FILE", RootFS.getDosUserConfigPath()+"\\dxvk.conf");
+        }
     }
 }

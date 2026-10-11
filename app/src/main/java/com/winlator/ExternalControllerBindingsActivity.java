@@ -32,7 +32,6 @@ import com.winlator.inputcontrols.Binding;
 import com.winlator.inputcontrols.ControlsProfile;
 import com.winlator.inputcontrols.ExternalController;
 import com.winlator.inputcontrols.ExternalControllerBinding;
-import com.winlator.inputcontrols.GamepadState;
 import com.winlator.inputcontrols.InputControlsManager;
 import com.winlator.math.Mathf;
 
@@ -45,7 +44,6 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        AppUtils.setActivityTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.external_controller_bindings_activity);
 
@@ -71,10 +69,7 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
         emptyTextView = findViewById(R.id.TVEmptyText);
         recyclerView = findViewById(R.id.RecyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-
-        DividerItemDecoration itemDecoration = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
-        itemDecoration.setDrawable(ContextCompat.getDrawable(this, R.drawable.list_item_divider));
-        recyclerView.addItemDecoration(itemDecoration);
+        recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
         recyclerView.setAdapter(adapter = new ControllerBindingsAdapter());
         updateEmptyTextView();
     }
@@ -108,8 +103,7 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
         int keyCode = KeyEvent.KEYCODE_UNKNOWN;
         Binding binding = Binding.NONE;
         final int[] axes = {MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ, MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y};
-        GamepadState state = controller.getGamepadState();
-        final float[] values = {state.thumbLX, state.thumbLY, state.thumbRX, state.thumbRY, state.getDPadX(), state.getDPadY()};
+        final float[] values = {controller.state.thumbLX, controller.state.thumbLY, controller.state.thumbRX, controller.state.thumbRY, controller.state.getDPadX(), controller.state.getDPadY()};
 
         byte sign;
         for (int i = 0; i < axes.length; i++) {
@@ -138,9 +132,8 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
         if (event.getDeviceId() == controller.getDeviceId() && controller.updateStateFromMotionEvent(event)) {
-            GamepadState state = controller.getGamepadState();
-            if (state.isPressed(ExternalController.IDX_BUTTON_L2)) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_L2, Binding.NONE);
-            if (state.isPressed(ExternalController.IDX_BUTTON_R2)) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_R2, Binding.NONE);
+            if (controller.state.isPressed(ExternalController.IDX_BUTTON_L2)) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_L2, Binding.NONE);
+            if (controller.state.isPressed(ExternalController.IDX_BUTTON_R2)) updateControllerBinding(KeyEvent.KEYCODE_BUTTON_R2, Binding.NONE);
             processJoystickInput();
             return true;
         }
@@ -280,7 +273,7 @@ public class ExternalControllerBindingsActivity extends AppCompatActivity {
     private void animateItemView(int position) {
         final ControllerBindingsAdapter.ViewHolder holder = (ControllerBindingsAdapter.ViewHolder)recyclerView.findViewHolderForAdapterPosition(position);
         if (holder != null) {
-            final int color = AppUtils.getThemeColor(this, R.attr.colorAccent);
+            final int color = ContextCompat.getColor(this, R.color.colorAccent);
             final ValueAnimator animator = ValueAnimator.ofFloat(0.4f, 0.0f);
             animator.setDuration(200);
             animator.setInterpolator(new AccelerateDecelerateInterpolator());

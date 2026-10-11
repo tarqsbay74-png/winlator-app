@@ -13,7 +13,7 @@ static void loadJMethods(JMethods* jmethods) {
     jclass cls = (*env)->GetObjectClass(env, jmethods->obj);
     jmethods->getWindowWidth = (*env)->GetMethodID(env, cls, "getWindowWidth", "(I)I");
     jmethods->getWindowHeight = (*env)->GetMethodID(env, cls, "getWindowHeight", "(I)I");
-    jmethods->getWindowHardwareBuffer = (*env)->GetMethodID(env, cls, "getWindowHardwareBuffer", "(IZ)J");
+    jmethods->getWindowHardwareBuffer = (*env)->GetMethodID(env, cls, "getWindowHardwareBuffer", "(I)J");
     jmethods->updateWindowContent = (*env)->GetMethodID(env, cls, "updateWindowContent", "(I)V");
 }
 
@@ -115,9 +115,10 @@ VkContext* createVkContext(JNIEnv* env, jobject obj, int clientFd, jobject optio
     context->exposedDeviceExtensions = jstringArrayToCharArray(env, exposedDeviceExtensions);
 
     pthread_mutex_init(&context->extraDataRequestsMutex, NULL);
+    pthread_mutex_init(&context->asyncPipelineCreator.mutex, NULL);
 
     context->memoryPool.data = calloc(MEMORY_POOL_MAX_SIZE, 1);
-    context->threadPool = ThreadPool_init(THREAD_POOL_NUM_THREADS);
+    context->threadPool = ThreadPool_init(4);
 
     (*env)->GetJavaVM(env, &context->jmethods.jvm);
     context->jmethods.obj = (*env)->NewGlobalRef(env, obj);
@@ -158,17 +159,19 @@ void destroyVkContext(JNIEnv* env, VkContext* context) {
         context->textureDecoder = NULL;
     }
 
-    ArrayList_free(context->exposedDeviceExtensions, true);
+    ArrayList_free(context->exposedDeviceExtensions);
     context->exposedDeviceExtensions = NULL;
 
-    ArrayList_free(context->disabledDeviceExtensions, true);
+    ArrayList_free(context->disabledDeviceExtensions);
     context->disabledDeviceExtensions = NULL;
 
-    ArrayList_free(&context->extraDataRequests, true);
+    MEMFREE(context->asyncPipelineCreator.busyObjects.elements);
+    pthread_mutex_destroy(&context->asyncPipelineCreator.mutex);
+
+    ArrayList_free(&context->extraDataRequests);
     pthread_mutex_destroy(&context->extraDataRequestsMutex);
 
     MEMFREE(context->memoryPool.data);
-    MEMFREE(context->engineName);
     free(context);
 }
 

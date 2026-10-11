@@ -9,6 +9,7 @@ import com.winlator.core.GPUHelper;
 import com.winlator.core.GeneralComponents;
 import com.winlator.core.KeyValueSet;
 import com.winlator.renderer.GPUImage;
+import com.winlator.renderer.Texture;
 import com.winlator.xconnector.ConnectedClient;
 import com.winlator.xconnector.ConnectionHandler;
 import com.winlator.xconnector.RequestHandler;
@@ -21,10 +22,12 @@ import com.winlator.xserver.Window;
 import com.winlator.xserver.XServer;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class VortekRendererComponent extends EnvironmentComponent implements ConnectionHandler, RequestHandler {
     private static final byte REQUEST_CODE_CREATE_CONTEXT = 1;
     private static final byte REQUEST_CODE_SEND_EXTRA_DATA = 2;
+    public static final short MAX_DEVICE_MEMORY = 4096;
     public static final short IMAGE_CACHE_SIZE = 256;
     public static final int VK_MAX_VERSION = GPUHelper.vkMakeVersion(1, 3, 128);
     private final XServer xServer;
@@ -38,7 +41,7 @@ public class VortekRendererComponent extends EnvironmentComponent implements Con
 
     public static class Options {
         public int vkMaxVersion = VK_MAX_VERSION;
-        public short maxDeviceMemory = 0;
+        public short maxDeviceMemory = MAX_DEVICE_MEMORY;
         public short imageCacheSize = IMAGE_CACHE_SIZE;
         public byte resourceMemoryType = 0;
         public String[] exposedDeviceExtensions = null;
@@ -59,7 +62,7 @@ public class VortekRendererComponent extends EnvironmentComponent implements Con
                 options.vkMaxVersion = GPUHelper.vkMakeVersion(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), 128);
             }
 
-            options.maxDeviceMemory = (short)config.getInt("maxDeviceMemory");
+            options.maxDeviceMemory = (short)config.getInt("maxDeviceMemory", VortekRendererComponent.MAX_DEVICE_MEMORY);
             options.imageCacheSize = (short)config.getInt("imageCacheSize", VortekRendererComponent.IMAGE_CACHE_SIZE);
             options.resourceMemoryType = (byte)config.getInt("resourceMemoryType");
 
@@ -108,12 +111,20 @@ public class VortekRendererComponent extends EnvironmentComponent implements Con
     }
 
     @Keep
-    private long getWindowHardwareBuffer(int windowId, boolean useHALPixelFormatBGRA8888) {
+    private long getWindowHardwareBuffer(int windowId) {
         Window window = xServer.windowManager.getWindow(windowId);
         if (window != null) {
-            GPUImage texture = GPUImage.createOrObtain(xServer, window.getContent(), false, useHALPixelFormatBGRA8888);
-            return texture.getHardwareBufferPtr();
+            Drawable drawable = window.getContent();
+            final Texture texture = drawable.getTexture();
+
+            if (!(texture instanceof GPUImage)) {
+                xServer.getRenderer().xServerView.queueEvent(texture::destroy);
+                drawable.setTexture(new GPUImage(drawable.width, drawable.height, false));
+            }
+
+            return ((GPUImage)drawable.getTexture()).getHardwareBufferPtr();
         }
+
         return 0;
     }
 

@@ -17,15 +17,8 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.TextView;
-
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Build;
-import androidx.core.content.ContextCompat;
-import android.app.NotificationManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -41,7 +34,6 @@ import com.winlator.box64.Box64PresetManager;
 import com.winlator.container.Container;
 import com.winlator.container.ContainerManager;
 import com.winlator.contentdialog.ContentDialog;
-import com.winlator.contentdialog.GamepadPlayerConfigDialog;
 import com.winlator.contentdialog.SoundFontTestDialog;
 import com.winlator.core.AppUtils;
 import com.winlator.core.ArrayUtils;
@@ -53,12 +45,11 @@ import com.winlator.core.LocaleHelper;
 import com.winlator.core.PreloaderDialog;
 import com.winlator.core.StringUtils;
 import com.winlator.core.WineInfo;
-import com.winlator.core.WineInstaller;
-import com.winlator.services.NotificationUtils;
+import com.winlator.core.WineUtils;
 import com.winlator.widget.ColorPickerView;
 import com.winlator.widget.LogView;
 import com.winlator.widget.SeekBar;
-import com.winlator.winhandler.GamepadHandler;
+import com.winlator.winhandler.WinHandler;
 import com.winlator.xenvironment.RootFS;
 import com.winlator.xenvironment.RootFSInstaller;
 
@@ -73,8 +64,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class SettingsFragment extends Fragment {
     public static final String DEFAULT_WINE_DEBUG_CHANNELS = "warn,err,fixme";
-    public static final byte APP_THEME_LIGHT = 0;
-    public static final byte APP_THEME_DARK = 1;
     private Callback<Uri> selectWineFileCallback;
     private PreloaderDialog preloaderDialog;
     private SharedPreferences preferences;
@@ -129,10 +118,6 @@ public class SettingsFragment extends Fragment {
         final Spinner sBox64Preset = view.findViewById(R.id.SBox64Preset);
         loadBox64PresetSpinner(view, sBox64Preset);
 
-        final RadioGroup rgAppTheme = view.findViewById(R.id.RGAppTheme);
-        final int oldAppThemeId = preferences.getInt("app_theme", APP_THEME_DARK) == APP_THEME_DARK ? R.id.RBDark : R.id.RBLight;
-        rgAppTheme.check(oldAppThemeId);
-
         final CheckBox cbMoveCursorToTouchpoint = view.findViewById(R.id.CBMoveCursorToTouchpoint);
         cbMoveCursorToTouchpoint.setChecked(preferences.getBoolean("move_cursor_to_touchpoint", false));
 
@@ -144,35 +129,6 @@ public class SettingsFragment extends Fragment {
 
         final CheckBox cbUseAndroidClipboardOnWine = view.findViewById(R.id.CBUseAndroidClipboardOnWine);
         cbUseAndroidClipboardOnWine.setChecked(preferences.getBoolean("use_android_clipboard_on_wine", false));
-
-        final CheckBox cbEnableBackgroundWakelock = view.findViewById(R.id.CBEnableBackgroundWakelock);
-        cbEnableBackgroundWakelock.setChecked(preferences.getBoolean("enable_background_wakelock", false));
-
-        final CheckBox cbEnableBackgroundProtection = view.findViewById(R.id.CBEnableBackgroundProtection);
-        cbEnableBackgroundProtection.setChecked(preferences.getBoolean("enable_background_protection", false));
-        cbEnableBackgroundProtection.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            cbEnableBackgroundWakelock.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-            if (!isChecked) cbEnableBackgroundWakelock.setChecked(false);
-
-            if (isChecked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                    // We force a temporary notification channel so that the notification permission request window appears on APIs 33+
-                    String tempId = "permission_trigger";
-                    NotificationUtils.getInstance(getContext().getApplicationContext()).createNotificationChannel(context, tempId, "Permission Trigger", NotificationManager.IMPORTANCE_LOW);
-//                    NotificationUtils.getInstance(getContext().getApplicationContext()).createNotificationChannel(); // Create the foreground notification channel.
-
-                    // And delete the channel after 1 second.
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                        if (nm != null) nm.deleteNotificationChannel(tempId);
-                    }, 1000);
-                }
-            }
-        });
-        cbEnableBackgroundWakelock.setVisibility(cbEnableBackgroundProtection.isChecked() ? View.VISIBLE : View.GONE);
-
-        final CheckBox cbSaveMemOnRunFromSteam = view.findViewById(R.id.CBSaveMemOnRunFromSteam);
-        cbSaveMemOnRunFromSteam.setChecked(preferences.getBoolean("save_mem_on_run_from_steam", true));
 
         final CheckBox cbEnableWineDebug = view.findViewById(R.id.CBEnableWineDebug);
         cbEnableWineDebug.setChecked(preferences.getBoolean("enable_wine_debug", false));
@@ -202,8 +158,8 @@ public class SettingsFragment extends Fragment {
         cpvCursorColor.setPalette(0xffffff, 0x000000, 0x651fff, 0xffea00, 0xff9100, 0xf50057, 0x00b0ff, 0x1de9b6);
         cpvCursorColor.setColor(preferences.getInt("cursor_color", 0xffffff));
 
-        final Spinner sGamepadModel = view.findViewById(R.id.SGamepadModel);
-        loadGamepadModelSpinner(sGamepadModel);
+        final Spinner sPreferredInputApi = view.findViewById(R.id.SPreferredInputApi);
+        sPreferredInputApi.setSelection(preferences.getInt("preferred_input_api", WinHandler.PreferredInputApi.BOTH.ordinal()));
 
         final Spinner sWineVersion = view.findViewById(R.id.SWineVersion);
         loadWineVersionSpinner(view, sWineVersion);
@@ -215,8 +171,6 @@ public class SettingsFragment extends Fragment {
         view.findViewById(R.id.BTReinstallSystemFiles).setOnClickListener((v) -> {
             ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_system_files, () -> RootFSInstaller.install((MainActivity)getActivity()));
         });
-
-        loadGamepadPlayerConfigs(view);
 
         if (MainActivity.DEBUG_MODE) {
             view.findViewById(R.id.LLWineInstallation).setVisibility(View.VISIBLE);
@@ -235,25 +189,13 @@ public class SettingsFragment extends Fragment {
             editor.putBoolean("enable_wine_debug", cbEnableWineDebug.isChecked());
             editor.putInt("box64_logs", sBox64Logs.getSelectedItemPosition());
             editor.putBoolean("save_logs_to_file", cbSaveLogsToFile.isChecked());
+            editor.putInt("preferred_input_api", sPreferredInputApi.getSelectedItemPosition());
             editor.putBoolean("open_android_browser_from_wine", cbOpenAndroidBrowserFromWine.isChecked());
             editor.putBoolean("use_android_clipboard_on_wine", cbUseAndroidClipboardOnWine.isChecked());
-            editor.putBoolean("enable_background_protection", cbEnableBackgroundProtection.isChecked());
-            editor.putBoolean("enable_background_wakelock", cbEnableBackgroundWakelock.isChecked());
-            editor.putBoolean("save_mem_on_run_from_steam", cbSaveMemOnRunFromSteam.isChecked());
-            putGamepadPlayerConfigs(view, editor);
-
-            GamepadHandler.GamepadModel gamepadModel = (GamepadHandler.GamepadModel)sGamepadModel.getAdapter().getItem(sGamepadModel.getSelectedItemPosition());
-            if (gamepadModel.vendorId > 1 && gamepadModel.productId > 1) {
-                editor.putString("gamepad_model", gamepadModel.identifier());
-            }
-            else editor.remove("gamepad_model");
-
-            int newAppThemeId = rgAppTheme.getCheckedRadioButtonId();
-            editor.putInt("app_theme", newAppThemeId == R.id.RBLight ? APP_THEME_LIGHT : APP_THEME_DARK);
 
             int newLCIndex = sLanguage.getSelectedItemPosition();
             editor.putInt("lc_index", newLCIndex);
-            boolean restartApp = oldLCIndex != newLCIndex || oldAppThemeId != newAppThemeId;
+            boolean restartApp = oldLCIndex != newLCIndex;
 
             int midiInputDevicePosition = sMIDIInputDevice.getSelectedItemPosition();
             editor.putString("midi_input_device", midiInputDevicePosition == 0 ? "none" :
@@ -284,23 +226,6 @@ public class SettingsFragment extends Fragment {
         });
 
         return view;
-    }
-
-    private void loadGamepadModelSpinner(Spinner sGamepadModel) {
-        final Context context = getContext();
-        ArrayList<GamepadHandler.GamepadModel> gamepadModels = GamepadHandler.loadGamepadModels(context);
-
-        String selectedModel = preferences.getString("gamepad_model", "");
-        int selectedPosition = 0;
-        for (int i = 0; i < gamepadModels.size(); i++) {
-            if (gamepadModels.get(i).identifier().equals(selectedModel)) {
-                selectedPosition = i;
-                break;
-            }
-        }
-
-        sGamepadModel.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, gamepadModels));
-        sGamepadModel.setSelection(selectedPosition);
     }
 
     private void loadBox64PresetSpinner(View view, final Spinner sBox64Preset) {
@@ -372,7 +297,7 @@ public class SettingsFragment extends Fragment {
 
     private void loadWineVersionSpinner(final View view, final Spinner sWineVersion) {
         Context context = getContext();
-        final ArrayList<WineInfo> wineInfos = WineInstaller.getInstalledWineInfos(context);
+        final ArrayList<WineInfo> wineInfos = WineUtils.getInstalledWineInfos(context);
         sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wineInfos));
 
         view.findViewById(R.id.BTInstallWine).setOnClickListener((v) -> selectWineFileForInstall());
@@ -390,9 +315,9 @@ public class SettingsFragment extends Fragment {
         final Context context = getContext();
         selectWineFileCallback = (uri) -> {
             preloaderDialog.show(R.string.preparing_installation);
-            WineInstaller.extractWineFileForInstallAsync(context, uri, (wineDir) -> {
+            WineUtils.extractWineFileForInstallAsync(context, uri, (wineDir) -> {
                 if (wineDir != null) {
-                    WineInstaller.findWineVersionAsync(context, wineDir, (wineInfo) -> {
+                    WineUtils.findWineVersionAsync(context, wineDir, (wineInfo) -> {
                         preloaderDialog.closeOnUiThread();
                         if (wineInfo == null) {
                             AppUtils.showToast(context, R.string.unable_to_install_wine);
@@ -501,12 +426,11 @@ public class SettingsFragment extends Fragment {
         }
     }
 
-    public static void resetPreferenceVersions(AppCompatActivity activity) {
+    public static void resetBox64Version(AppCompatActivity activity) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
         SharedPreferences.Editor editor = preferences.edit();
         editor.putString("box64_version", DefaultVersion.BOX64);
         editor.remove("current_box64_version");
-        editor.remove("current_graphics_driver");
         editor.apply();
     }
 
@@ -548,35 +472,6 @@ public class SettingsFragment extends Fragment {
         }
         else if (selectedValue.equals("auto") || !AppUtils.setSpinnerSelectionFromValue(sMIDIInputDevice, selectedValue)) {
             sMIDIInputDevice.setSelection(1, false);
-        }
-    }
-
-    private void loadGamepadPlayerConfigs(View view) {
-        LinearLayout container = view.findViewById(R.id.LLGamepadPlayer);
-        view.findViewById(R.id.BTResetGamepadPlayerConfigs).setOnClickListener((v) -> {
-            ContentDialog.confirm(v.getContext(), R.string.do_you_want_to_reset_configurations, () -> {
-                for (int i = 0; i < container.getChildCount(); i++) container.getChildAt(i).setTag("");
-            });
-        });
-
-        for (int i = 0; i < container.getChildCount(); i++) {
-            final View child = container.getChildAt(i);
-            child.setTag(preferences.getString("gamepad_player"+i, ""));
-            final byte slot = (byte)i;
-            child.setOnClickListener((v) -> (new GamepadPlayerConfigDialog(child, slot)).show());
-        }
-    }
-
-    private void putGamepadPlayerConfigs(View view, SharedPreferences.Editor editor) {
-        LinearLayout container = view.findViewById(R.id.LLGamepadPlayer);
-        for (int i = 0; i < container.getChildCount(); i++) {
-            View child = container.getChildAt(i);
-            String config = child.getTag().toString();
-            String key = "gamepad_player"+i;
-            if (!config.isEmpty()) {
-                editor.putString(key, child.getTag().toString());
-            }
-            else editor.remove(key);
         }
     }
 }

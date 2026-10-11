@@ -143,7 +143,6 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         envVars.put("BOX64_NOBANNER", box64Logs >= 1 ? "0" : "1");
         envVars.put("BOX64_DYNAREC", "1");
         envVars.put("BOX64_UNITYPLAYER", "0");
-        envVars.put("BOX64_DYNACACHE", "0");
 
         if (box64Logs >= 1) {
             envVars.put("BOX64_LOG", "1");
@@ -168,6 +167,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
         }
 
         envVars.putAll(Box64PresetManager.getEnvVars(context, box64Preset));
+        envVars.put("BOX64_X11GLX", "1");
 
         File box64RCFile = new File(rootFS.getRootDir(), "/etc/config.box64rc");
         envVars.put("BOX64_RCFILE", box64RCFile.getPath());

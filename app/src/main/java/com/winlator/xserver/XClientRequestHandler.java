@@ -20,8 +20,6 @@ import com.winlator.xserver.requests.SelectionRequests;
 import com.winlator.xserver.requests.WindowRequests;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class XClientRequestHandler implements RequestHandler {
     public static final byte RESPONSE_CODE_ERROR = 0;
@@ -30,7 +28,7 @@ public class XClientRequestHandler implements RequestHandler {
 
     @Override
     public boolean handleRequest(ConnectedClient client) throws IOException {
-        XClient xClient = (XClient)client;
+        XClient xClient = (XClient)client.getTag();
         XInputStream inputStream = client.getInputStream();
         XOutputStream outputStream = client.getOutputStream();
 
@@ -43,13 +41,14 @@ public class XClientRequestHandler implements RequestHandler {
     private void sendServerInformation(XClient client, XOutputStream outputStream) throws IOException {
         short vendorNameLength = (short)XServer.VENDOR_NAME.length();
         byte pixmapFormatCount = (byte)client.xServer.pixmapManager.supportedPixmapFormats.length;
+        short additionalDataLength = (short)(8 + (2 * pixmapFormatCount) + ((vendorNameLength + 3) / 4) + ((40 + 8 * client.xServer.pixmapManager.supportedVisuals.length + 24) + 3) / 4);
 
         try (XStreamLock lock = outputStream.lock()) {
             outputStream.writeByte(RESPONSE_CODE_SUCCESS);
             outputStream.writeByte((byte)0);
             outputStream.writeShort(XServer.VERSION);
             outputStream.writeShort((short)0);
-            outputStream.writeShort((short)0);
+            outputStream.writeShort(additionalDataLength);
             outputStream.writeInt(1);
             outputStream.writeInt(client.resourceIDBase);
             outputStream.writeInt(client.xServer.resourceIDs.idMask);
@@ -110,9 +109,6 @@ public class XClientRequestHandler implements RequestHandler {
                     outputStream.writeInt(0);
                 }
             }
-
-            short additionalDataLength = (short)((outputStream.length() - 8) / 4);
-            outputStream.writeShortAt(6, additionalDataLength);
         }
     }
 
@@ -124,8 +120,8 @@ public class XClientRequestHandler implements RequestHandler {
         if (majorVersion != 11) throw new UnsupportedOperationException("Unsupported major X protocol version "+majorVersion+".");
 
         inputStream.skip(2);
-        short nameLength = inputStream.readShort();
-        short dataLength = inputStream.readShort();
+        int nameLength = inputStream.readShort();
+        int dataLength = inputStream.readShort();
         inputStream.skip(2);
 
         if (nameLength > 0) inputStream.readString8(nameLength);
@@ -160,7 +156,7 @@ public class XClientRequestHandler implements RequestHandler {
 
         try {
             if (opcode < 0) {
-                Extension extension = client.xServer.getExtension(opcode);
+                Extension extension = client.xServer.extensions.get(opcode);
                 if (extension != null) extension.handleRequest(client, inputStream, outputStream);
             }
             else {
@@ -331,11 +327,6 @@ public class XClientRequestHandler implements RequestHandler {
                     case ClientOpcodes.FREE_GC:
                         try (XLock lock = client.xServer.lock(XServer.Lockable.GRAPHIC_CONTEXT_MANAGER)) {
                             GraphicsContextRequests.freeGC(client, inputStream, outputStream);
-                        }
-                        break;
-                    case ClientOpcodes.CLEAR_AREA:
-                        try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER)) {
-                            DrawRequests.clearArea(client, inputStream, outputStream);
                         }
                         break;
                     case ClientOpcodes.COPY_AREA:

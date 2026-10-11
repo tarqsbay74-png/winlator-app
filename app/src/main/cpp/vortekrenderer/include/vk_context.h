@@ -39,13 +39,11 @@ typedef struct VkContext {
     ShaderInspector* shaderInspector;
     ThreadPool* threadPool;
 
+    AsyncPipelineCreator asyncPipelineCreator;
     ArrayList extraDataRequests;
     pthread_mutex_t extraDataRequestsMutex;
 
     JMethods jmethods;
-    char* engineName;
-    uint32_t engineVersion;
-    VkDriverId driverID;
 } VkContext;
 
 typedef struct ExtraDataRequest {

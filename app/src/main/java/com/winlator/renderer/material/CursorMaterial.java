@@ -1,23 +1,17 @@
 package com.winlator.renderer.material;
 
 public class CursorMaterial extends ShaderMaterial {
-    public final Uniforms uniforms = new Uniforms();
-
-    public static class Uniforms {
-        public final Uniform xform = new Uniform("xform");
-        public final Uniform viewSize = new Uniform("viewSize");
-        public final Uniform texture = new Uniform("texture");
-        public final Uniform backColor = new Uniform("backColor");
-        public final Uniform foreColor = new Uniform("foreColor");
+    public CursorMaterial() {
+        setUniformNames("xform", "viewSize", "texture", "backColor", "foreColor");
     }
 
     @Override
     protected String getVertexShader() {
         return String.join("\n",
-            "in vec2 position;",
-            "out vec2 vUV;",
             "uniform float xform[6];",
             "uniform vec2 viewSize;",
+            "attribute vec2 position;",
+            "varying vec2 vUV;",
 
             "void main() {",
                 "vUV = position;",
@@ -32,16 +26,15 @@ public class CursorMaterial extends ShaderMaterial {
         return String.join("\n",
             "precision mediump float;",
 
-            "uniform sampler2D cursorTexture;",
+            "uniform sampler2D texture;",
             "uniform vec3 backColor;",
             "uniform vec3 foreColor;",
-            "in vec2 vUV;",
 
-            "layout(location = 0) out vec4 outFragColor;",
+            "varying vec2 vUV;",
 
             "void main() {",
-                "vec4 texelColor = texture(cursorTexture, vUV);",
-                "outFragColor = vec4(mix(foreColor, backColor, texelColor.r), texelColor.a);",
+                "vec4 texelColor = texture2D(texture, vUV);",
+                "gl_FragColor = vec4(mix(foreColor, backColor, texelColor.r), texelColor.a);",
             "}"
         );
     }

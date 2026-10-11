@@ -2,7 +2,6 @@ package com.winlator.renderer;
 
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
-import android.opengl.GLES32;
 
 import com.winlator.xserver.Drawable;
 
@@ -15,13 +14,8 @@ public class Texture {
     protected int magFilter = GLES20.GL_LINEAR;
     protected int minFilter = GLES20.GL_LINEAR;
     protected int format = GLES11Ext.GL_BGRA;
+    protected byte unpackAlignment = 4;
     protected boolean needsUpdate = true;
-    private boolean flipY = false;
-    protected Drawable owner;
-
-    public Texture(Drawable owner) {
-        this.owner = owner;
-    }
 
     protected void generateTextureId() {
         int[] textureIds = new int[1];
@@ -40,7 +34,7 @@ public class Texture {
         generateTextureId();
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, unpackAlignment);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
 
         if (data != null) {
@@ -49,22 +43,6 @@ public class Texture {
 
         setTextureParameters();
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-    }
-
-    public Drawable getOwner() {
-        return owner;
-    }
-
-    public void setOwner(Drawable owner) {
-        this.owner = owner;
-    }
-
-    public boolean isFlipY() {
-        return flipY;
-    }
-
-    public void setFlipY(boolean flipY) {
-        this.flipY = flipY;
     }
 
     public int getWrapS() {
@@ -107,6 +85,14 @@ public class Texture {
         this.format = format;
     }
 
+    public byte getUnpackAlignment() {
+        return unpackAlignment;
+    }
+
+    public void setUnpackAlignment(byte unpackAlignment) {
+        this.unpackAlignment = unpackAlignment;
+    }
+
     public boolean isNeedsUpdate() {
         return needsUpdate;
     }
@@ -115,16 +101,16 @@ public class Texture {
         this.needsUpdate = needsUpdate;
     }
 
-    public void updateFromDrawable() {
-        if (owner == null || owner.getData() == null) return;
+    public void updateFromDrawable(Drawable drawable) {
+        ByteBuffer data = drawable.getData();
+        if (data == null) return;
 
-        ByteBuffer data = owner.getData();
         if (!isAllocated()) {
-            allocateTexture(owner.width, owner.height, data);
+            allocateTexture(drawable.width, drawable.height, data);
         }
         else if (needsUpdate) {
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
-            GLES20.glTexSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, owner.width, owner.height, format, GLES20.GL_UNSIGNED_BYTE, data);
+            GLES20.glTexSubImage2D(GLES20.GL_TEXTURE_2D, 0, 0, 0, drawable.width, drawable.height, format, GLES20.GL_UNSIGNED_BYTE, data);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
             needsUpdate = false;
         }
@@ -138,23 +124,14 @@ public class Texture {
         return textureId;
     }
 
-    public void copyFromSource(Texture source) {
-        if (!source.isAllocated()) source.allocateTexture(source.owner.width, source.owner.height, null);
-        if (!this.isAllocated()) this.allocateTexture(source.owner.width, source.owner.height, null);
-        GLES32.glCopyImageSubData(
-            source.textureId, GLES20.GL_TEXTURE_2D, 0, 0, 0, 0,
-            this.textureId, GLES20.GL_TEXTURE_2D, 0, 0, 0, 0,
-            source.owner.width, source.owner.height, 1
-        );
-        GLES20.glFlush();
-    }
-
-    public void copyFromReadBuffer(short width, short height) {
+    public void copyFromFramebuffer(int framebuffer, short width, short height) {
         if (!isAllocated()) allocateTexture(width, height, null);
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebuffer);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
         GLES20.glCopyTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 0, 0, width, height, 0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-        GLES20.glFlush();
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
     }
 
     public void destroy() {

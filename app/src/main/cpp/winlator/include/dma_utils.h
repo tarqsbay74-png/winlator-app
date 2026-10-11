@@ -5,7 +5,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/dma-heap.h>
-#include <errno.h>
 
 #include "ion/ion.h"
 #include "ion/ion_4.19.h"
@@ -93,43 +92,6 @@ static inline int dmabuf_alloc(uint64_t size) {
             return alloc_data.fd;
         }
     }
-}
-
-static inline uint64_t getTotalSystemMemory() {
-    FILE* file = fopen("/proc/meminfo", "r");
-    if (!file) return 0;
-    uint64_t memTotalKB = 0;
-
-    char line[256];
-    while (fgets(line, sizeof(line), file) != NULL) {
-        if (strncmp(line, "MemTotal:", 9) == 0) {
-            sscanf(line, "MemTotal: %ld kB", &memTotalKB);
-            break;
-        }
-    }
-
-    fclose(file);
-    return memTotalKB * 1024;
-}
-
-static inline uint64_t getAvailableSystemMemory() {
-    FILE* file = fopen("/proc/meminfo", "r");
-    if (!file) return 0;
-    uint64_t availMemKB = 0;
-
-    char line[256];
-    while (fgets(line, sizeof(line), file) != NULL) {
-        if (strncmp(line, "MemAvailable:", 13) == 0) {
-            sscanf(line, "MemAvailable: %ld kB", &availMemKB);
-            break;
-        }
-        else if (strncmp(line, "MemFree:", 8) == 0 && availMemKB == 0) {
-            sscanf(line, "MemFree: %ld kB", &availMemKB);
-        }
-    }
-
-    fclose(file);
-    return availMemKB * 1024;
 }
 
 #endif

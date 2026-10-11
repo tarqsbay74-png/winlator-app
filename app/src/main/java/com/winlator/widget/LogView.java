@@ -79,10 +79,6 @@ public class LogView extends View {
         else printStream = null;
     }
 
-    public boolean isSaveToFile() {
-        return printStream != null;
-    }
-
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
@@ -99,11 +95,10 @@ public class LogView extends View {
 
         synchronized (lock) {
             paint.setStyle(Paint.Style.FILL);
-            Context context = getContext();
 
             if (lines.isEmpty()) {
                 paint.setTextSize(UnitUtils.dpToPx(20));
-                paint.setColor(AppUtils.getThemeColor(context, R.attr.colorSecondaryText));
+                paint.setColor(0xffbdbdbd);
                 String text = getContext().getString(R.string.no_items_to_display);
                 float centerX = (width - paint.measureText(text)) * 0.5f;
                 float centerY = (height - paint.getFontSpacing()) * 0.5f - paint.ascent();
@@ -115,20 +110,16 @@ public class LogView extends View {
             float textHeight = paint.getFontSpacing();
 
             float rowY = -scrollPosition.y;
-            int colorPrimarySurface = AppUtils.getThemeColor(context, R.attr.colorPrimarySurface);
-            int colorSecondarySurface = AppUtils.getThemeColor(context, R.attr.colorSecondarySurface);
-            int colorPrimaryText = AppUtils.getThemeColor(context, R.attr.colorPrimaryText);
-
             for (int i = 0, count = lines.size(); i < count; i++) {
                 if ((rowY + rowHeight) < 0 || rowY >= height) {
                     rowY += rowHeight;
                     continue;
                 }
 
-                paint.setColor((i % 2) != 0 ? colorPrimarySurface : colorSecondarySurface);
+                paint.setColor((i % 2) != 0 ? 0xffe1f5fe : 0xffffffff);
                 canvas.drawRect(-scrollPosition.x, rowY, width, rowY + rowHeight, paint);
 
-                paint.setColor(colorPrimaryText);
+                paint.setColor(0xff212121);
                 float centerY = (rowY - paint.ascent()) + (rowHeight - textHeight) * 0.5f;
                 canvas.drawText(lines.get(i), -scrollPosition.x, centerY, paint);
                 rowY += rowHeight;
@@ -208,21 +199,21 @@ public class LogView extends View {
     }
 
     public void append(String line) {
-        if (printStream != null) {
-            printStream.append(line);
-            printStream.flush();
-        }
-        else {
-            synchronized (lock) {
-                String content = line.replace("\n", "");
-                if (content.isEmpty()) return;
-                String logLine = "["+DateFormat.format("HH:mm:ss", System.currentTimeMillis())+"]  "+content;
-                lines.add(logLine);
-                computeScrollSize();
+        synchronized (lock) {
+            String content = line.replace("\n", "");
+            if (content.isEmpty()) return;
+            String logLine = "["+DateFormat.format("HH:mm:ss", System.currentTimeMillis())+"]  "+content;
+            lines.add(logLine);
+
+            if (printStream != null) {
+                printStream.append(logLine+"\n");
+                printStream.flush();
             }
-            postInvalidate();
-            if (MainActivity.DEBUG_MODE) System.out.println(line);
+            computeScrollSize();
         }
+        postInvalidate();
+
+        if (MainActivity.DEBUG_MODE) System.out.println(line);
     }
 
     public static File getLogFile() {

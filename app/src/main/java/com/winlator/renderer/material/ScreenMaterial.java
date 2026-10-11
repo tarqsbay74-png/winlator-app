@@ -1,23 +1,18 @@
 package com.winlator.renderer.material;
 
 public class ScreenMaterial extends ShaderMaterial {
-    public final Uniforms uniforms = new Uniforms();
-
-    public static class Uniforms {
-        public final Uniform resolution = new Uniform("resolution");
-        public final Uniform screenTexture = new Uniform("screenTexture");
-        public final Uniform flipY = new Uniform("flipY");
+    public ScreenMaterial() {
+        setUniformNames("resolution", "screenTexture");
     }
 
     @Override
     protected String getVertexShader() {
         return String.join("\n",
-            "in vec2 position;",
-            "out vec2 vUV;",
-            "uniform bool flipY;",
+            "attribute vec2 position;",
+            "varying vec2 vUV;",
 
             "void main() {",
-                "vUV = vec2(position.x, flipY ? (1.0 - position.y) : position.y);",
+                "vUV = position;",
                 "gl_Position = vec4(2.0 * position.x - 1.0, 2.0 * position.y - 1.0, 0.0, 1.0);",
             "}"
         );
@@ -29,12 +24,11 @@ public class ScreenMaterial extends ShaderMaterial {
             "precision mediump float;",
 
             "uniform sampler2D screenTexture;",
-            "in vec2 vUV;",
 
-            "layout(location = 0) out vec4 outFragColor;",
+            "varying vec2 vUV;",
 
             "void main() {",
-                "outFragColor = texture(screenTexture, vUV);",
+                "gl_FragColor = texture2D(screenTexture, vUV);",
             "}"
         );
     }

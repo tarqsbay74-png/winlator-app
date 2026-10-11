@@ -17,7 +17,7 @@
         android:paddingRight="32dp"
         android:layout_gravity="center"
         android:gravity="right"
-        android:background="?attr/preloaderBackground">
+        android:background="@drawable/preloader_background">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -36,7 +36,7 @@
                     android:layout_height="wrap_content"
                     app:trackThickness="10dp"
                     app:trackColor="#bdbdbd"
-                    app:indicatorColor="?attr/colorAccent"
+                    app:indicatorColor="@color/colorAccent"
                     app:indicatorSize="64dp"
                     android:layout_gravity="center" />
 
@@ -53,7 +53,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="20dp"
-                android:textColor="?attr/colorPrimaryText"
+                android:textColor="@color/colorPrimaryDark"
                 android:text="@string/downloading_file" />
         </LinearLayout>
 

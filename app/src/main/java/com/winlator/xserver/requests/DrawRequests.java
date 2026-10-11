@@ -7,14 +7,11 @@ import com.winlator.xconnector.XOutputStream;
 import com.winlator.xconnector.XStreamLock;
 import com.winlator.xserver.Drawable;
 import com.winlator.xserver.GraphicsContext;
-import com.winlator.xserver.Window;
 import com.winlator.xserver.XClient;
 import com.winlator.xserver.errors.BadDrawable;
 import com.winlator.xserver.errors.BadGraphicsContext;
 import com.winlator.xserver.errors.BadMatch;
-import com.winlator.xserver.errors.BadWindow;
 import com.winlator.xserver.errors.XRequestError;
-import com.winlator.xserver.events.Expose;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,7 +34,7 @@ public abstract class DrawRequests {
         int length = client.getRemainingRequestLength();
         ByteBuffer data = inputStream.readByteBuffer(length);
 
-        Drawable drawable = client.xServer.drawableManager.getDrawable(drawableId);
+        Drawable drawable =  client.xServer.drawableManager.getDrawable(drawableId);
         if (drawable == null) throw new BadDrawable(drawableId);
 
         GraphicsContext graphicsContext = client.xServer.graphicsContextManager.getGraphicsContext(gcId);
@@ -96,24 +93,6 @@ public abstract class DrawRequests {
         }
     }
 
-    public static void clearArea(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
-        boolean exposures = client.getRequestData() == 1;
-        int windowId = inputStream.readInt();
-        short x = inputStream.readShort();
-        short y = inputStream.readShort();
-        short width = inputStream.readShort();
-        short height = inputStream.readShort();
-
-        Window window = client.xServer.windowManager.getWindow(windowId);
-        if (window == null) throw new BadWindow(windowId);
-        if (!window.isInputOutput()) throw new BadMatch();
-
-        Drawable drawable = window.getContent();
-        drawable.fillRect(x, y, width, height, 0x000000);
-
-        if (exposures) window.sendEvent(new Expose(window));
-    }
-
     public static void copyArea(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
         int srcDrawableId = inputStream.readInt();
         int dstDrawableId = inputStream.readInt();
@@ -130,17 +109,6 @@ public abstract class DrawRequests {
 
         Drawable dstDrawable =  client.xServer.drawableManager.getDrawable(dstDrawableId);
         if (dstDrawable == null) throw new BadDrawable(dstDrawableId);
-
-        if (srcDrawable.isOffscreenStorage() && (srcDrawable.getData() == null || srcDrawable.isUseSharedData())) {
-            dstDrawable.setData(null);
-            dstDrawable.setTexture(srcDrawable.getTexture());
-
-            if (srcDrawableId != client.xServer.activity.frameRatingWindowId) {
-                Window srcWindow =  client.xServer.windowManager.getWindow(srcDrawableId);
-                client.xServer.activity.changeFrameRatingVisibility(srcWindow, true);
-            }
-            return;
-        }
 
         GraphicsContext graphicsContext =  client.xServer.graphicsContextManager.getGraphicsContext(gcId);
         if (graphicsContext == null) throw new BadGraphicsContext(gcId);

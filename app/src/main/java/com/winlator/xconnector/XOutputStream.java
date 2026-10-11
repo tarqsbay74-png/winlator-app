@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import dalvik.annotation.optimization.CriticalNative;
 
-public class XOutputStream implements XStreamLock {
+public class XOutputStream {
     private final ReentrantLock lock = new ReentrantLock();
     private final long nativePtr;
 
@@ -55,28 +55,6 @@ public class XOutputStream implements XStreamLock {
         for (int i = offset; i < length; i++) writeByte(nativePtr, data[i]);
     }
 
-    public void writeShortAt(int position, short value) {
-        final byte[] data = {
-            (byte)(value & 0xff),
-            (byte)((value >> 8) & 0xff)
-        };
-        writeAt(nativePtr, position, data);
-    }
-
-    public void writeIntAt(int position, int value) {
-        final byte[] data = {
-            (byte)(value & 0xff),
-            (byte)((value >>> 8) & 0xff),
-            (byte)((value >>> 16) & 0xff),
-            (byte)((value >>> 24) & 0xff)
-        };
-        writeAt(nativePtr, position, data);
-    }
-
-    public void writeAt(int position, byte[] data) {
-        writeAt(nativePtr, position, data);
-    }
-
     public void write(ByteBuffer data) {
         if (data.isDirect()) {
             writeByteBuffer(nativePtr, data, data.position(), data.remaining());
@@ -92,37 +70,28 @@ public class XOutputStream implements XStreamLock {
         writePad(nativePtr, length);
     }
 
-    public void writeFP3232(float value) {
-        float tmp;
-        tmp = (float)Math.floor(value);
-        int integral = (int)tmp;
-        tmp = (value - tmp) * (1L<<32);
-        int frac = (int)tmp;
-        writeInt(integral);
-        writeInt(frac);
-    }
-
     public XStreamLock lock() {
-        lock.lock();
-        return this;
+        return new OutputStreamLock();
     }
 
     public void destroy() {
         destroy(nativePtr);
     }
 
-    @Override
-    public void close() throws IOException {
-        try {
-            if (!sendData(nativePtr)) throw new IOException("Failed to send data.");
+    private class OutputStreamLock implements XStreamLock {
+        public OutputStreamLock() {
+            lock.lock();
         }
-        finally {
-            lock.unlock();
-        }
-    }
 
-    public int length() {
-        return length(nativePtr);
+        @Override
+        public void close() throws IOException {
+            try {
+                if (!sendData(nativePtr)) throw new IOException("Failed to send data.");
+            }
+            finally {
+                lock.unlock();
+            }
+        }
     }
 
     private native long nativeAllocate(int fd, int initialCapacity);
@@ -145,16 +114,9 @@ public class XOutputStream implements XStreamLock {
     @CriticalNative
     private static native void writePad(long nativePtr, int length);
 
-    private static native void writeAt(long nativePtr, int position, byte[] data);
-
     private static native void writeByteBuffer(long nativePtr, ByteBuffer data, int offset, int length);
 
-    @CriticalNative
     private static native boolean sendData(long nativePtr);
 
-    @CriticalNative
     private static native void destroy(long nativePtr);
-
-    @CriticalNative
-    private static native int length(long nativePtr);
 }

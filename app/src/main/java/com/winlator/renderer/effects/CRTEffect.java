@@ -1,10 +1,11 @@
 package com.winlator.renderer.effects;
 
 import com.winlator.renderer.material.ScreenMaterial;
+import com.winlator.renderer.material.ShaderMaterial;
 
 public class CRTEffect extends Effect {
     @Override
-    protected ScreenMaterial createMaterial() {
+    protected ShaderMaterial createMaterial() {
         return new ScreenMaterial() {
             @Override
             protected String getFragmentShader() {
@@ -17,23 +18,22 @@ public class CRTEffect extends Effect {
                     "#define SCANLINE_SIZE 1024.0",
 
                     "uniform sampler2D screenTexture;",
-                    "in vec2 vUV;",
 
-                    "layout(location = 0) out vec4 outFragColor;",
+                    "varying vec2 vUV;",
 
                     "void main() {",
-                        "vec4 finalColor = texture(screenTexture, vUV);",
+                        "vec4 finalColor = texture2D(screenTexture, vUV);",
 
                         "finalColor.rgb = vec3(",
-                            "texture(screenTexture, (vUV - 0.5) * CA_AMOUNT + 0.5).r,",
+                            "texture2D(screenTexture, (vUV - 0.5) * CA_AMOUNT + 0.5).r,",
                             "finalColor.g,",
-                            "texture(screenTexture, (vUV - 0.5) / CA_AMOUNT + 0.5).b",
+                            "texture2D(screenTexture, (vUV - 0.5) / CA_AMOUNT + 0.5).b",
                         ");",
 
                         "float scanlineX = abs(sin(vUV.x * SCANLINE_SIZE) * 0.5 * SCANLINE_INTENSITY_X);",
                         "float scanlineY = abs(sin(vUV.y * SCANLINE_SIZE) * 0.5 * SCANLINE_INTENSITY_Y);",
 
-                        "outFragColor = vec4(mix(finalColor.rgb, vec3(0.0), scanlineX + scanlineY), finalColor.a);",
+                        "gl_FragColor = vec4(mix(finalColor.rgb, vec3(0.0), scanlineX + scanlineY), finalColor.a);",
                     "}"
                 );
             }

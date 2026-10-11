@@ -7,7 +7,6 @@ import com.winlator.core.FileUtils;
 import com.winlator.core.KeyValueSet;
 import com.winlator.core.WineInfo;
 import com.winlator.core.WineThemeManager;
-import com.winlator.widget.FrameRating;
 import com.winlator.xenvironment.RootFS;
 
 import org.json.JSONException;
@@ -19,6 +18,7 @@ import java.util.Iterator;
 public class Container {
     public static final String DEFAULT_ENV_VARS = "ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 TU_DEBUG=noconform";
     public static final String DEFAULT_SCREEN_SIZE = "1280x720";
+    public static final String DEFAULT_GRAPHICS_DRIVER = GraphicsDrivers.VORTEK;
     public static final String DEFAULT_AUDIO_DRIVER = AudioDrivers.ALSA;
     public static final String DEFAULT_DXWRAPPER = DXWrappers.DXVK;
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=0,directplay=0,xaudio=1,vcrun2005=0,vcrun2010=1,wmdecoder=1";
@@ -32,7 +32,7 @@ public class Container {
     private String name;
     private String screenSize = DEFAULT_SCREEN_SIZE;
     private String envVars = DEFAULT_ENV_VARS;
-    private String graphicsDriver = GraphicsDrivers.DEFAULT_VULKAN_DRIVER+","+ GraphicsDrivers.DEFAULT_OPENGL_DRIVER;
+    private String graphicsDriver = DEFAULT_GRAPHICS_DRIVER;
     private String dxwrapper = DEFAULT_DXWRAPPER;
     private String dxwrapperConfig = "";
     private String graphicsDriverConfig = "";
@@ -41,7 +41,7 @@ public class Container {
     private String audioDriver = DEFAULT_AUDIO_DRIVER;
     private String drives = DEFAULT_DRIVES;
     private String wineVersion = WineInfo.MAIN_WINE_INFO.identifier();
-    private byte hudMode = (byte)FrameRating.Mode.DISABLED.ordinal();
+    private boolean showFPS;
     private byte startupSelection = STARTUP_SELECTION_ESSENTIAL;
     private String cpuList;
     private String cpuListWoW64;
@@ -143,12 +143,12 @@ public class Container {
         this.drives = drives;
     }
 
-    public byte getHUDMode() {
-        return hudMode;
+    public boolean isShowFPS() {
+        return showFPS;
     }
 
-    public void setHUDMode(byte hudMode) {
-        this.hudMode = hudMode;
+    public void setShowFPS(boolean showFPS) {
+        this.showFPS = showFPS;
     }
 
     public byte getStartupSelection() {
@@ -176,7 +176,7 @@ public class Container {
     }
 
     public String getCPUListWoW64(boolean allowFallback) {
-        return cpuListWoW64 != null ? cpuListWoW64 : (allowFallback ? getFallbackCPUList() : null);
+        return cpuListWoW64 != null ? cpuListWoW64 : (allowFallback ? getFallbackCPUListWoW64() : null);
     }
 
     public void setCPUListWoW64(String cpuListWoW64) {
@@ -299,7 +299,7 @@ public class Container {
             data.put("audioDriver", audioDriver);
             data.put("wincomponents", wincomponents);
             data.put("drives", drives);
-            data.put("hudMode", hudMode);
+            data.put("showFPS", showFPS);
             data.put("startupSelection", startupSelection);
             data.put("box64Preset", box64Preset);
             data.put("desktopTheme", desktopTheme);
@@ -359,10 +359,7 @@ public class Container {
                     setDrives(data.getString(key));
                     break;
                 case "showFPS" :
-                    setHUDMode((byte)(data.getBoolean(key) ? FrameRating.Mode.SIMPLE.ordinal() : FrameRating.Mode.DISABLED.ordinal()));
-                    break;
-                case "hudMode" :
-                    setHUDMode((byte)data.getInt(key));
+                    setShowFPS(data.getBoolean(key));
                     break;
                 case "startupSelection" :
                     setStartupSelection((byte)data.getInt(key));
@@ -429,6 +426,13 @@ public class Container {
         String cpuList = "";
         int numProcessors = Runtime.getRuntime().availableProcessors();
         for (int i = 0; i < numProcessors; i++) cpuList += (!cpuList.isEmpty() ? "," : "")+i;
+        return cpuList;
+    }
+
+    public static String getFallbackCPUListWoW64() {
+        String cpuList = "";
+        int numProcessors = Runtime.getRuntime().availableProcessors();
+        for (int i = numProcessors / 2; i < numProcessors; i++) cpuList += (!cpuList.isEmpty() ? "," : "")+i;
         return cpuList;
     }
 }

@@ -7,7 +7,6 @@ import android.widget.CheckBox;
 import android.widget.Spinner;
 
 import com.winlator.R;
-import com.winlator.container.DXWrappers;
 import com.winlator.core.AppUtils;
 import com.winlator.core.DefaultVersion;
 import com.winlator.core.EnvVars;
@@ -28,16 +27,11 @@ public class WineD3DConfigDialog extends ContentDialog {
         setTitle("WineD3D "+context.getString(R.string.configuration));
 
         final Spinner sVersion = findViewById(R.id.SVersion);
-        final Spinner sDDrawWrapper = findViewById(R.id.SDDrawWrapper);
-        final Spinner sRenderer = findViewById(R.id.SRenderer);
 
         KeyValueSet config = new KeyValueSet(anchor.getTag());
 
         String version = config.get("version");
         GeneralComponents.initViews(GeneralComponents.Type.WINED3D, findViewById(R.id.WineD3DToolbox), sVersion, version, DefaultVersion.WINED3D);
-
-        AppUtils.setSpinnerSelectionFromIdentifier(sDDrawWrapper, config.get("ddrawWrapper", DXWrappers.WINED3D));
-        AppUtils.setSpinnerSelectionFromIdentifier(sRenderer, config.get("renderer", "gl"));
 
         final CheckBox cbCSMT = findViewById(R.id.CBCSMT);
         cbCSMT.setChecked(config.getInt("csmt", 3) != 0);
@@ -57,25 +51,19 @@ public class WineD3DConfigDialog extends ContentDialog {
 
         final Spinner sVideoMemorySize = findViewById(R.id.SVideoMemorySize);
         final String videoMemorySize = config.get("VideoMemorySize", "2048");
-        AppUtils.setSpinnerSelectionFromMemorySize(sVideoMemorySize, videoMemorySize);
+        AppUtils.setSpinnerSelectionFromNumber(sVideoMemorySize, videoMemorySize);
 
         setOnConfirmCallback(() -> {
             KeyValueSet newConfig = new KeyValueSet();
-            newConfig.put("version", sVersion.getSelectedItem().toString());
+            newConfig.put("version", StringUtils.parseNumber(sVersion.getSelectedItem()));
             newConfig.put("csmt", cbCSMT.isChecked() ? "3" : "0");
-
-            String ddrawWrapper = StringUtils.parseIdentifier(sDDrawWrapper.getSelectedItem());
-            if (!ddrawWrapper.equals(DXWrappers.WINED3D)) newConfig.put("ddrawWrapper", ddrawWrapper);
-
-            String renderer = StringUtils.parseIdentifier(sRenderer.getSelectedItem());
-            if (!renderer.equals("gl")) newConfig.put("renderer", renderer);
 
             GPUCardAdapter.GPUCard gpuCard = (GPUCardAdapter.GPUCard)sGPUName.getSelectedItem();
             newConfig.put("VideoPciDeviceID", String.valueOf(gpuCard.deviceId));
             newConfig.put("VideoPciVendorID", String.valueOf(gpuCard.vendorId));
             newConfig.put("OffscreenRenderingMode", sOffscreenRenderingMode.getSelectedItem().toString().toLowerCase(Locale.ENGLISH));
             newConfig.put("strict_shader_math", cbStrictShaderMath.isChecked() ? "1" : "0");
-            newConfig.put("VideoMemorySize", StringUtils.parseMemorySize(sVideoMemorySize.getSelectedItem()));
+            newConfig.put("VideoMemorySize", StringUtils.parseNumber(sVideoMemorySize.getSelectedItem()));
 
             anchor.setTag(newConfig.toString());
         });
@@ -83,7 +71,6 @@ public class WineD3DConfigDialog extends ContentDialog {
 
     public static void setEnvVars(KeyValueSet config, EnvVars envVars) {
         envVars.put("WINE_D3D_CONFIG", String.join(",",
-            "renderer="+config.get("renderer", "gl"),
             "csmt="+config.getHexString("csmt", 3),
             "VideoPciDeviceID="+config.getHexString("VideoPciDeviceID", 1728),
             "VideoPciVendorID="+config.getHexString("VideoPciVendorID", 4318),

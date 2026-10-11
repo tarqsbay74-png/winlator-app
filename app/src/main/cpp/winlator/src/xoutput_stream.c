@@ -110,16 +110,6 @@ Java_com_winlator_xconnector_XOutputStream_writePad(jlong nativePtr, jint length
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_xconnector_XOutputStream_writeAt(JNIEnv *env, jclass obj,
-                                                   jlong nativePtr, jint position, jbyteArray data) {
-    XOutputStream* outputStream = (XOutputStream*)nativePtr;
-    jbyte* dataPtr = (*env)->GetByteArrayElements(env, data, 0);
-    jsize length = (*env)->GetArrayLength(env, data);
-    memcpy(outputStream->buffer.data + position, dataPtr, length);
-    (*env)->ReleaseByteArrayElements(env, data, dataPtr, JNI_ABORT);
-}
-
-JNIEXPORT void JNICALL
 Java_com_winlator_xconnector_XOutputStream_writeByteBuffer(JNIEnv *env, jclass obj,
                                                            jlong nativePtr, jobject data,
                                                            jint offset, jint length) {
@@ -131,17 +121,11 @@ Java_com_winlator_xconnector_XOutputStream_writeByteBuffer(JNIEnv *env, jclass o
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_winlator_xconnector_XOutputStream_sendData(jlong nativePtr) {
+Java_com_winlator_xconnector_XOutputStream_sendData(JNIEnv *env, jclass obj, jlong nativePtr) {
     return XOutputStream_send((XOutputStream*)nativePtr);
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_xconnector_XOutputStream_destroy(jlong nativePtr) {
+Java_com_winlator_xconnector_XOutputStream_destroy(JNIEnv *env, jclass obj, jlong nativePtr) {
     XOutputStream_destroy((XOutputStream*)nativePtr);
-}
-
-JNIEXPORT jint JNICALL
-Java_com_winlator_xconnector_XOutputStream_length(jlong nativePtr) {
-    XOutputStream* outputStream = (XOutputStream*)nativePtr;
-    return outputStream->buffer.position;
 }

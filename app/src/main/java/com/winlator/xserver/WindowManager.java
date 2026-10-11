@@ -6,7 +6,6 @@ import com.winlator.core.Bitmask;
 import com.winlator.xconnector.XInputStream;
 import com.winlator.xserver.errors.BadIdChoice;
 import com.winlator.xserver.errors.BadMatch;
-import com.winlator.xserver.errors.BadValue;
 import com.winlator.xserver.errors.XRequestError;
 import com.winlator.xserver.events.ConfigureNotify;
 import com.winlator.xserver.events.ConfigureRequest;
@@ -239,7 +238,7 @@ public class WindowManager extends XResourceManager {
         triggerOnChangeWindowZOrder(window);
     }
 
-    public void configureWindow(Window window, Bitmask valueMask, XInputStream inputStream) throws XRequestError {
+    public void configureWindow(Window window, Bitmask valueMask, XInputStream inputStream) {
         short x = window.getX();
         short y = window.getY();
         short width = window.getWidth();
@@ -273,9 +272,6 @@ public class WindowManager extends XResourceManager {
                     break;
             }
         }
-
-        if (width <= 0) throw new BadValue(width);
-        if (height <= 0) throw new BadValue(height);
 
         Window parent = window.getParent();
         boolean overrideRedirect = window.attributes.isOverrideRedirect();
@@ -320,31 +316,31 @@ public class WindowManager extends XResourceManager {
         onWindowModificationListeners.remove(onWindowModificationListener);
     }
 
-    public void triggerOnMapWindow(Window window) {
+    private void triggerOnMapWindow(Window window) {
         for (int i = onWindowModificationListeners.size()-1; i >= 0; i--) {
             onWindowModificationListeners.get(i).onMapWindow(window);
         }
     }
 
-    public void triggerOnUnmapWindow(Window window) {
+    private void triggerOnUnmapWindow(Window window) {
         for (int i = onWindowModificationListeners.size()-1; i >= 0; i--) {
             onWindowModificationListeners.get(i).onUnmapWindow(window);
         }
     }
 
-    public void triggerOnChangeWindowZOrder(Window window) {
+    private void triggerOnChangeWindowZOrder(Window window) {
         for (int i = onWindowModificationListeners.size()-1; i >= 0; i--) {
             onWindowModificationListeners.get(i).onChangeWindowZOrder(window);
         }
     }
 
-    public void triggerOnUpdateWindowContent(Window window) {
+    protected void triggerOnUpdateWindowContent(Window window) {
         for (int i = onWindowModificationListeners.size()-1; i >= 0; i--) {
             onWindowModificationListeners.get(i).onUpdateWindowContent(window);
         }
     }
 
-    public void triggerOnUpdateWindowGeometry(Window window, boolean resized) {
+    protected void triggerOnUpdateWindowGeometry(Window window, boolean resized) {
         for (int i = onWindowModificationListeners.size()-1; i >= 0; i--) {
             onWindowModificationListeners.get(i).onUpdateWindowGeometry(window, resized);
         }

@@ -4,7 +4,6 @@
 #include "dma_utils.h"
 
 extern int AHardwareBuffer_getFd(AHardwareBuffer* hardwareBuffer);
-extern DeviceMemoryInfo deviceMemoryInfo;
 
 static ResourceMemory* internalAllocate() {
     ResourceMemory* resourceMemory = calloc(1, sizeof(ResourceMemory));
@@ -29,12 +28,14 @@ static AHardwareBuffer* allocateHardwareBuffer(int size) {
 }
 
 ResourceMemory* ResourceMemory_allocate(VkContext* context, VkDevice device, VkMemoryAllocateInfo* memoryInfo) {
-    uint64_t maxAllocationSize = (VkDeviceSize)context->maxDeviceMemory << 20;
-    if (maxAllocationSize == 0) maxAllocationSize = deviceMemoryInfo.maxAllocationSize;
-    if ((context->totalAllocationSize + memoryInfo->allocationSize) >= maxAllocationSize) return NULL;
-
     VkResult result;
     ResourceMemory* resourceMemory = internalAllocate();
+
+    VkDeviceSize maxHeapSize = (VkDeviceSize)context->maxDeviceMemory << 20;
+    if ((context->totalAllocationSize + memoryInfo->allocationSize) > maxHeapSize) {
+        return resourceMemory;
+    }
+
     if (isHostVisibleMemory(memoryInfo->memoryTypeIndex)) {
         bool hasExternalMemoryFd = context->hasExternalMemoryFd;
         bool hasExternalMemoryDMABuf = context->hasExternalMemoryDMABuf;
@@ -164,7 +165,7 @@ ResourceMemory* ResourceMemory_allocate(VkContext* context, VkDevice device, VkM
 
 error:
     ResourceMemory_free(context, device, resourceMemory);
-    return NULL;
+    return internalAllocate();
 }
 
 void ResourceMemory_free(VkContext* context, VkDevice device, ResourceMemory* resourceMemory) {

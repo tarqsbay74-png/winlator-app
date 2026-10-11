@@ -9,12 +9,8 @@ public class ColorEffect extends Effect {
     private float gamma = 1.0f;
 
     @Override
-    public ScreenMaterial createMaterial() {
-        final ShaderMaterial.Uniform brightnessUniform = new ShaderMaterial.Uniform("brightness");
-        final ShaderMaterial.Uniform contrastUniform = new ShaderMaterial.Uniform("contrast");
-        final ShaderMaterial.Uniform gammaUniform = new ShaderMaterial.Uniform("gamma");
-
-        return new ScreenMaterial() {
+    public ShaderMaterial createMaterial() {
+        ScreenMaterial material = new ScreenMaterial() {
             @Override
             protected String getFragmentShader() {
                 return String.join("\n",
@@ -24,19 +20,18 @@ public class ColorEffect extends Effect {
                     "uniform float brightness;",
                     "uniform float contrast;",
                     "uniform float gamma;",
-                    "in vec2 vUV;",
 
-                    "layout(location = 0) out vec4 outFragColor;",
+                    "varying vec2 vUV;",
 
                     "void main() {",
-                        "vec4 texelColor = texture(screenTexture, vUV);",
+                        "vec4 texelColor = texture2D(screenTexture, vUV);",
                         "vec3 color = texelColor.rgb;",
 
                         "color = clamp(color + brightness, 0.0, 1.0);",
                         "color = (color - 0.5) * clamp(contrast + 1.0, 0.5, 2.0) + 0.5;",
                         "color = pow(color, vec3(1.0 / gamma));",
 
-                        "outFragColor = vec4(color, texelColor.a);",
+                        "gl_FragColor = vec4(color, texelColor.a);",
                     "}"
                 );
             }
@@ -45,11 +40,14 @@ public class ColorEffect extends Effect {
             public void use() {
                 super.use();
 
-                setUniformFloat(brightnessUniform, brightness);
-                setUniformFloat(contrastUniform, contrast);
-                setUniformFloat(gammaUniform, gamma);
+                setUniformFloat("brightness", brightness);
+                setUniformFloat("contrast", contrast);
+                setUniformFloat("gamma", gamma);
             }
         };
+
+        material.setUniformNames("brightness", "contrast", "gamma", "screenTexture");
+        return material;
     }
 
     public float getBrightness() {

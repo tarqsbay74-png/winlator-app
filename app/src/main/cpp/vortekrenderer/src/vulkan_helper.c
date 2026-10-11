@@ -1,11 +1,11 @@
 #include <string.h>
 
 #include "vulkan_helper.h"
-#include "dma_utils.h"
 
 #define VK_MAKE_VERSION_STR(s, v) sprintf(s, "%d.%d.%d", VK_VERSION_MAJOR(v), VK_VERSION_MINOR(v), VK_VERSION_PATCH(v))
 
-DeviceMemoryInfo deviceMemoryInfo = {0};
+static VkMemoryType* memoryTypes = {0};
+static int memoryTypeCount = 0;
 
 #if ENABLE_VALIDATION_LAYER
 static VkBool32 debugReportCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT type, uint64_t object, size_t location, int32_t messageCode, const char *pLayerPrefix, const char *pMessage, void *pUserData) {
@@ -28,35 +28,19 @@ static bool isExternalMemoryHandleTypeSupported(VkPhysicalDevice physicalDevice,
            (memoryProperties->compatibleHandleTypes & handleType) != 0;
 }
 
-static void setupExposedDeviceExtensions(VkContext* context) {
-    if (!context->engineName) return;
-
-    ArrayList_free(context->disabledDeviceExtensions, true);
+static void setupExposedDeviceExtensions(VkContext* context, const char* engineName) {
+    ArrayList_free(context->disabledDeviceExtensions);
     context->disabledDeviceExtensions = NULL;
 
-    if (strcmp(context->engineName, "DXVK") == 0) {
-        bool isMaliDevice = context->driverID == VK_DRIVER_ID_ARM_PROPRIETARY;
-        bool isXclipseDevice = context->driverID == VK_DRIVER_ID_SAMSUNG_PROPRIETARY;
-        bool isAdrenoDevice = context->driverID == VK_DRIVER_ID_QUALCOMM_PROPRIETARY;
-
-        if ((isMaliDevice || isXclipseDevice) && context->engineVersion < MAKE_ENGINE_VERSION(2, 0, 0)) {
-            const char* disabledDeviceExtensions[] = {"VK_EXT_extended_dynamic_state", "VK_EXT_extended_dynamic_state2", "VK_EXT_extended_dynamic_state3", "VK_EXT_hdr_metadata", "VK_EXT_swapchain_maintenance1"};
-            context->disabledDeviceExtensions = ArrayList_fromStrings(disabledDeviceExtensions, ARRAY_SIZE(disabledDeviceExtensions));
-        }
-        else if (isAdrenoDevice) {
-            const char* disabledDeviceExtensions[] = {"VK_KHR_shader_float_controls", "VK_EXT_hdr_metadata", "VK_EXT_swapchain_maintenance1"};
-            context->disabledDeviceExtensions = ArrayList_fromStrings(disabledDeviceExtensions, ARRAY_SIZE(disabledDeviceExtensions));
-        }
-        else {
-            const char* disabledDeviceExtensions[] = {"VK_EXT_hdr_metadata", "VK_EXT_swapchain_maintenance1"};
-            context->disabledDeviceExtensions = ArrayList_fromStrings(disabledDeviceExtensions, ARRAY_SIZE(disabledDeviceExtensions));
-        }
-    }
-    else if (strcmp(context->engineName, "mesa zink") == 0) {
-        const char* disabledDeviceExtensions[] = {"VK_EXT_extended_dynamic_state", "VK_EXT_extended_dynamic_state2", "VK_EXT_extended_dynamic_state3", "VK_EXT_color_write_enable", "VK_KHR_push_descriptor"};
+    if (engineName && strstr(engineName, "zink")) {
+        const char* disabledDeviceExtensions[] = {"VK_EXT_extended_dynamic_state", "VK_EXT_color_write_enable", "VK_KHR_push_descriptor"};
+        ArrayList_free(context->exposedDeviceExtensions);
         context->disabledDeviceExtensions = ArrayList_fromStrings(disabledDeviceExtensions, ARRAY_SIZE(disabledDeviceExtensions));
-        ArrayList_free(context->exposedDeviceExtensions, true);
         context->exposedDeviceExtensions = ArrayList_fromStrings(globalExposedDeviceExtensions, ARRAY_SIZE(globalExposedDeviceExtensions));
+    }
+    else {
+        const char* disabledDeviceExtensions[] = {"VK_KHR_shader_float_controls", "VK_EXT_hdr_metadata", "VK_EXT_swapchain_maintenance1"};
+        context->disabledDeviceExtensions = ArrayList_fromStrings(disabledDeviceExtensions, ARRAY_SIZE(disabledDeviceExtensions));
     }
 }
 
@@ -73,39 +57,19 @@ void initVulkanInstance(VkContext* context, VkInstance instance, const VkApplica
     result = vulkanWrapper.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices);
     if (result != VK_SUCCESS || physicalDeviceCount == 0) return;
 
-    if (deviceMemoryInfo.memoryTypeCount == 0) {
+    if (memoryTypeCount == 0) {
         VkPhysicalDeviceMemoryProperties memoryProperties;
         vulkanWrapper.vkGetPhysicalDeviceMemoryProperties(physicalDevices[0], &memoryProperties);
 
-        deviceMemoryInfo.memoryTypes = malloc(memoryProperties.memoryTypeCount * sizeof(VkMemoryType));
-        memcpy(deviceMemoryInfo.memoryTypes, memoryProperties.memoryTypes, memoryProperties.memoryTypeCount * sizeof(VkMemoryType));
-        deviceMemoryInfo.memoryTypeCount = memoryProperties.memoryTypeCount;
-
-        VkDeviceSize maxHeapSize = 0;
-        for (int i = 0; i < memoryProperties.memoryHeapCount; i++) maxHeapSize = MAX(maxHeapSize, memoryProperties.memoryHeaps[i].size);
-        deviceMemoryInfo.maxAllocationSize = maxHeapSize * 2 / 3;
+        memoryTypes = malloc(memoryProperties.memoryTypeCount * sizeof(VkMemoryType));
+        memcpy(memoryTypes, memoryProperties.memoryTypes, memoryProperties.memoryTypeCount * sizeof(VkMemoryType));
+        memoryTypeCount = memoryProperties.memoryTypeCount;
     }
-
-    VkPhysicalDeviceDriverProperties driverProperties = {0};
-    driverProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
-    VkPhysicalDeviceProperties2 properties2 = {0};
-    properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    properties2.pNext = &driverProperties;
-    vulkanWrapper.vkGetPhysicalDeviceProperties2(physicalDevices[0], &properties2);
-    context->driverID = driverProperties.driverID;
 
     context->hasExternalMemoryFd = isExternalMemoryHandleTypeSupported(physicalDevices[0], VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
     context->hasExternalMemoryDMABuf = isExternalMemoryHandleTypeSupported(physicalDevices[0], VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
 
-    MEMFREE(context->engineName);
-    context->engineVersion = 0;
-
-    if (applicationInfo) {
-        context->engineName = applicationInfo->pEngineName ? strdup(applicationInfo->pEngineName) : NULL;
-        context->engineVersion = applicationInfo->engineVersion;
-    }
-
-    setupExposedDeviceExtensions(context);
+    setupExposedDeviceExtensions(context, applicationInfo ? applicationInfo->pEngineName : NULL);
 
 #if ENABLE_VALIDATION_LAYER
     VkDebugReportCallbackCreateInfoEXT debugCreateInfo = {0};
@@ -137,27 +101,27 @@ void initVulkanDevice(VkContext* context, VkPhysicalDevice physicalDevice, VkDev
     VkPhysicalDeviceFeatures supportedFeatures = {0};
     vulkanWrapper.vkGetPhysicalDeviceFeatures(physicalDevice, &supportedFeatures);
 
-    if (!context->textureDecoder) context->textureDecoder = TextureDecoder_create(context, physicalDevice, device, &supportedFeatures);
-    if (!context->shaderInspector) context->shaderInspector = ShaderInspector_create(context, physicalDevice, &supportedFeatures);
+    if (!context->textureDecoder) context->textureDecoder = TextureDecoder_create(&supportedFeatures, context->imageCacheSize, context->threadPool);
+    if (!context->shaderInspector) context->shaderInspector = ShaderInspector_create(physicalDevice, &supportedFeatures);
     if (context->textureDecoder) context->textureDecoder->threadPool = context->threadPool;
 }
 
 uint32_t getMemoryTypeIndex(uint32_t typeBits, VkFlags properties) {
-    for (uint32_t i = 0; i < deviceMemoryInfo.memoryTypeCount; i++) {
-        if ((typeBits & 1) && (deviceMemoryInfo.memoryTypes[i].propertyFlags & properties)) return i;
+    for (uint32_t i = 0; i < memoryTypeCount; i++) {
+        if ((typeBits & 1) && (memoryTypes[i].propertyFlags & properties)) return i;
         typeBits >>= 1;
     }
     return 0;
 }
 
 uint32_t getMemoryPropertyFlags(uint32_t memoryTypeIndex) {
-    if (deviceMemoryInfo.memoryTypeCount == 0 || memoryTypeIndex >= deviceMemoryInfo.memoryTypeCount) return 0;
-    return deviceMemoryInfo.memoryTypes[memoryTypeIndex].propertyFlags;
+    if (memoryTypeCount == 0 || memoryTypeIndex >= memoryTypeCount) return 0;
+    return memoryTypes[memoryTypeIndex].propertyFlags;
 }
 
 bool isHostVisibleMemory(uint32_t memoryTypeIndex) {
-    if (deviceMemoryInfo.memoryTypeCount == 0 || memoryTypeIndex >= deviceMemoryInfo.memoryTypeCount) return false;
-    VkMemoryType* memoryType = &deviceMemoryInfo.memoryTypes[memoryTypeIndex];
+    if (memoryTypeCount == 0 || memoryTypeIndex >= memoryTypeCount) return false;
+    VkMemoryType* memoryType = &memoryTypes[memoryTypeIndex];
     return memoryType->propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 }
 
@@ -277,18 +241,10 @@ void injectExtensions2(VkContext* context, VkExtensionProperties** extensions, u
     *extensionCount = newExtensionCount;
 }
 
-void checkDeviceMemoryProperties(VkContext* context, VkPhysicalDeviceMemoryProperties* memoryProperties, void* pNext) {
+void overrideMemoryHeapSize(VkContext* context, VkPhysicalDeviceMemoryProperties* memoryProperties) {
     VkDeviceSize maxHeapSize = (VkDeviceSize)context->maxDeviceMemory << 20;
-    if (maxHeapSize == 0) maxHeapSize = deviceMemoryInfo.maxAllocationSize;
-
     for (int i = 0; i < memoryProperties->memoryHeapCount; i++) {
         memoryProperties->memoryHeaps[i].size = MIN(memoryProperties->memoryHeaps[i].size, maxHeapSize);
-    }
-
-    VkPhysicalDeviceMemoryBudgetPropertiesEXT* memoryBudgetProperties = findNextVkStructure(pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT);
-    if (memoryBudgetProperties) {
-        memoryBudgetProperties->heapUsage[0] = context->totalAllocationSize;
-        memoryBudgetProperties->heapBudget[0] = maxHeapSize > 0 ? maxHeapSize : deviceMemoryInfo.maxAllocationSize;
     }
 }
 
@@ -368,8 +324,6 @@ VkExtensionProperties* getExposedDeviceExtensionProperties(VkContext* context, V
         }
     }
 
-    injectExtensions2(context, &dstProperties, propertyCount,
-                      globalImplementedDeviceExtensions, ARRAY_SIZE(globalImplementedDeviceExtensions), NULL, 0);
     return dstProperties;
 }
 
@@ -379,18 +333,6 @@ void checkFormatProperties(VkPhysicalDevice physicalDevice, VkFormat format, VkF
     }
     else if (isFormatScaled(format)) {
         formatProperties->bufferFeatures |= VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT;
-    }
-}
-
-void checkImageFormatProperties(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* imageFormatProperties, VkResult* result) {
-    if (tiling == VK_IMAGE_TILING_LINEAR && type == VK_IMAGE_TYPE_2D && format == VK_FORMAT_R8G8B8A8_UNORM &&
-        usage == (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
-        imageFormatProperties->sampleCounts = VK_SAMPLE_COUNT_8_BIT;
-        *result = VK_SUCCESS;
-    }
-
-    if (*result == VK_ERROR_FORMAT_NOT_SUPPORTED && isCompressedFormat(format)) {
-        *result = getCompressedImageFormatProperties(format, imageFormatProperties);
     }
 }
 
@@ -423,9 +365,6 @@ void checkDeviceProperties(VkContext* context, VkPhysicalDeviceProperties* prope
 
     VkPhysicalDeviceDriverProperties* driverProperties = findNextVkStructure(pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES);
     if (driverProperties) VK_MAKE_VERSION_STR(driverProperties->driverInfo, properties->driverVersion);
-
-    VkPhysicalDeviceMapMemoryPlacedPropertiesEXT* mapPlacedProperties = findNextVkStructure(pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAP_MEMORY_PLACED_PROPERTIES_EXT);
-    if (mapPlacedProperties) mapPlacedProperties->minPlacedMemoryMapAlignment = getpagesize();
 }
 
 void checkDeviceFeatures(VkPhysicalDeviceFeatures* features, void* pNext) {
@@ -450,13 +389,6 @@ void checkDeviceFeatures(VkPhysicalDeviceFeatures* features, void* pNext) {
     features->fragmentStoresAndAtomics = VK_TRUE;
     features->multiDrawIndirect = VK_TRUE;
     features->tessellationShader = VK_TRUE;
-
-    VkPhysicalDeviceMapMemoryPlacedFeaturesEXT* mapMemoryPlacedFeatures = findNextVkStructure(pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAP_MEMORY_PLACED_FEATURES_EXT);
-    if (mapMemoryPlacedFeatures) {
-        mapMemoryPlacedFeatures->memoryMapPlaced = VK_TRUE;
-        mapMemoryPlacedFeatures->memoryMapRangePlaced = VK_FALSE;
-        mapMemoryPlacedFeatures->memoryUnmapReserve = VK_TRUE;
-    }
 }
 
 void destroyVkObject(VkObjectType type, VkDevice device, void* handle) {
@@ -509,7 +441,8 @@ void destroyVkObject(VkObjectType type, VkDevice device, void* handle) {
             vulkanWrapper.vkDestroyRenderPass(device, handle, NULL);
             break;
         case VK_OBJECT_TYPE_PIPELINE: {
-            vulkanWrapper.vkDestroyPipeline(device, handle, NULL);
+            VkPipeline pipeline = AsyncPipelineCreator_getVkHandle(handle);
+            if (pipeline) vulkanWrapper.vkDestroyPipeline(device, pipeline, NULL);
             break;
         }
         case VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT:

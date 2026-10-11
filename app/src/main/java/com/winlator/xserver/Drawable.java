@@ -16,7 +16,7 @@ public class Drawable extends XResource {
     public final short width;
     public final short height;
     public final Visual visual;
-    private Texture texture = new Texture(this);
+    private Texture texture = new Texture();
     private ByteBuffer data;
     private boolean useSharedData;
     private Runnable onDrawListener;
@@ -192,7 +192,7 @@ public class Drawable extends XResource {
     }
 
     public void forceUpdate() {
-        if (!offscreenStorage || useSharedData) {
+        if (!offscreenStorage) {
             texture.setNeedsUpdate(true);
             if (onDrawListener != null) onDrawListener.run();
         }

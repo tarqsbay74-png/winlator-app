@@ -16,12 +16,14 @@ add_library(vortekrenderer SHARED
             src/vk_context.c
             src/resource_memory.c
             src/xwindow_swapchain.c
+            src/ring_buffer.c
             src/texture_decoder.c
             src/shader_inspector.c
             src/async_pipeline_creator.c
             src/timeline_semaphore.c)
 
 target_link_libraries(vortekrenderer
+                      adrenotools
                       winlator
                       log
                       android)

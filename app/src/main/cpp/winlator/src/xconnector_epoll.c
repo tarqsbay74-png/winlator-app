@@ -113,7 +113,7 @@ static void requestShutdown(int fd) {
     write(fd, &shutdownValue, sizeof(uint64_t));
 }
 
-static void XConnectorEpoll_destroy(JNIEnv* env, XConnectorEpoll* connector) {
+static void XConnectorEpoll_destroy(XConnectorEpoll* connector) {
     if (connector->serverFd > 0) {
         removeFdFromEpoll(connector->epollFd, connector->serverFd);
         CLOSEFD(connector->serverFd);
@@ -124,16 +124,11 @@ static void XConnectorEpoll_destroy(JNIEnv* env, XConnectorEpoll* connector) {
         CLOSEFD(connector->shutdownFd);
     }
 
-    if (connector->jmethods.obj) {
-        (*env)->DeleteGlobalRef(env, connector->jmethods.obj);
-        connector->jmethods.obj = NULL;
-    }
-
     CLOSEFD(connector->epollFd);
     free(connector);
 }
 
-static XConnectorEpoll* XConnectorEpoll_allocate(JNIEnv* env, jobject obj, const char* sockPath) {
+static XConnectorEpoll* XConnectorEpoll_allocate(const char* sockPath) {
     XConnectorEpoll* connector = calloc(1, sizeof(XConnectorEpoll));
 
     connector->epollFd = epoll_create(MAX_EVENTS);
@@ -147,13 +142,10 @@ static XConnectorEpoll* XConnectorEpoll_allocate(JNIEnv* env, jobject obj, const
 
     if (!addFdToEpoll(connector->epollFd, connector->serverFd, &connector->serverFd)) goto error;
     if (!addFdToEpoll(connector->epollFd, connector->shutdownFd, &connector->shutdownFd)) goto error;
-
-    (*env)->GetJavaVM(env, &connector->jmethods.jvm);
-    connector->jmethods.obj = (*env)->NewGlobalRef(env, obj);
     return connector;
 
 error:
-    XConnectorEpoll_destroy(env, connector);
+    XConnectorEpoll_destroy(connector);
     return NULL;
 }
 
@@ -174,11 +166,7 @@ static void XConnectorEpoll_killConnection(XConnectorEpoll* connector, Connected
     else removeFdFromEpoll(connector->epollFd, client->fd);
 
     CLOSEFD(client->fd);
-
-    if (client->tag) {
-        (*jmethods->env)->CallVoidMethod(jmethods->env, jmethods->obj, jmethods->handleConnectionShutdown, client->tag);
-        client->tag = NULL;
-    }
+    (*jmethods->env)->CallVoidMethod(jmethods->env, jmethods->obj, jmethods->handleConnectionShutdown, client->tag);
 }
 
 static void* pollThread(void* param) {
@@ -194,10 +182,6 @@ static void* pollThread(void* param) {
     }
     while (client->running && res >= 0);
 
-    if (client->tag) {
-        (*jmethods->env)->CallVoidMethod(jmethods->env, jmethods->obj, jmethods->handleConnectionShutdown, client->tag);
-        client->tag = NULL;
-    }
     (*jmethods->jvm)->DetachCurrentThread(jmethods->jvm);
     return NULL;
 }
@@ -243,6 +227,7 @@ static void* epollThread(void* param) {
     }
 
     (*jmethods->env)->CallVoidMethod(jmethods->env, jmethods->obj, jmethods->killAllConnections);
+    (*jmethods->env)->DeleteGlobalRef(jmethods->env, jmethods->obj);
     (*jmethods->jvm)->DetachCurrentThread(jmethods->jvm);
     return NULL;
 }
@@ -269,10 +254,15 @@ Java_com_winlator_xconnector_XConnectorEpoll_closeFd(jint fd) {
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_winlator_xconnector_XConnectorEpoll_nativeAllocate(JNIEnv* env, jobject obj,
+Java_com_winlator_xconnector_XConnectorEpoll_nativeAllocate(JNIEnv *env, jobject obj,
                                                             jstring sockPath) {
     const char* pathPtr = (*env)->GetStringUTFChars(env, sockPath, 0);
-    XConnectorEpoll* connector = XConnectorEpoll_allocate(env, obj, pathPtr);
+    XConnectorEpoll* connector = XConnectorEpoll_allocate(pathPtr);
+
+    if (connector) {
+        (*env)->GetJavaVM(env, &connector->jmethods.jvm);
+        connector->jmethods.obj = (*env)->NewGlobalRef(env, obj);
+    }
 
     (*env)->ReleaseStringUTFChars(env, sockPath, pathPtr);
     return (jlong)connector;
@@ -280,7 +270,7 @@ Java_com_winlator_xconnector_XConnectorEpoll_nativeAllocate(JNIEnv* env, jobject
 
 JNIEXPORT void JNICALL
 Java_com_winlator_xconnector_XConnectorEpoll_destroy(JNIEnv *env, jobject obj, jlong nativePtr) {
-    XConnectorEpoll_destroy(env, (XConnectorEpoll*)nativePtr);
+    XConnectorEpoll_destroy((XConnectorEpoll*)nativePtr);
 }
 
 JNIEXPORT void JNICALL
