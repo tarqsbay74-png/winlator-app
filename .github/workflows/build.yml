@@ -1,39 +1,53 @@
-
-name: 构建测试apk
+name: Replace repository with Winlator source
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
+
+permissions:
+contents: write
 
 jobs:
-  build:
-    name: "构建测试apk"
-    runs-on: ubuntu-latest
+replace:
+name: Replace repository files
+runs-on: ubuntu-latest
 
-    steps:
-    - name: 1 下载项目源码
-      uses: actions/checkout@v4
+steps:
+  - name: 1 Checkout current repository
+    uses: actions/checkout@v4
+    with:
+      path: current
+      ref: ${{ github.ref_name }}
+      fetch-depth: 0
 
-    - name: 2 安装依赖
-      run: |
-        sudo apt update
-        sudo apt install -y libarchive-tools wget
+  - name: 2 Checkout source repository
+    uses: actions/checkout@v4
+    with:
+      repository: brunodev85/winlator-app
+      ref: 5c199d5d66ba84d805934e31f5205ff42e4a0d58
+      path: source
+      fetch-depth: 1
 
-    - name: 3 配置 Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '17'
+  - name: 3 Install dependencies
+    run: |
+      sudo apt update
+      sudo apt install -y rsync
 
-    - name: 4 构建 APK
-      run: |
-        pwd
-        ls -la
-        chmod +x ./gradlew
-        ./gradlew assembleDebug
+  - name: 4 Replace current repository files
+    run: |
+      rsync -a --delete --exclude='.git/' source/ current/
 
-    - name: 5 上传 APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: winlator-debug
-        path: ./app/build/outputs/apk/debug/app-debug.apk
-        
+  - name: 5 Commit and push changes
+    working-directory: current
+    run: |
+      git config user.name "github-actions[bot]"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      git add -A
+
+      if git diff --cached --quiet; then
+        echo "No changes to commit."
+        exit 0
+      fi
+
+      git commit -m "Replace repository with upstream Winlator commit 5c199d5"
+      git push origin "HEAD:${GITHUB_REF_NAME}"
