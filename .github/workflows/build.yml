@@ -1,55 +1,48 @@
-name: Replace repository with Winlator source
+name: Replace Winlator Repository
 
 on:
-workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-contents: write
+  contents: write
 
 jobs:
-replace:
-name: Replace repository files
-runs-on: ubuntu-latest
+  replace:
+    runs-on: ubuntu-latest
 
-steps:
-  - name: Checkout current repository
-    uses: actions/checkout@v4
-    with:
-      path: current
-      ref: ${{ github.ref_name }}
-      fetch-depth: 0
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          path: current
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
-  - name: Checkout source repository
-    uses: actions/checkout@v4
-    with:
-      repository: brunodev85/winlator-app
-      ref: 5c199d5d66ba84d805934e31f5205ff42e4a0d58
-      path: source
-      fetch-depth: 1
+      - name: Checkout Winlator source
+        uses: actions/checkout@v4
+        with:
+          repository: brunodev85/winlator-app
+          ref: 5c199d5d66ba84d805934e31f5205ff42e4a0d58
+          path: source
+          fetch-depth: 1
 
-  - name: Install rsync
-    run: |
-      sudo apt-get update
-      sudo apt-get install -y rsync
+      - name: Install rsync
+        run: sudo apt-get install -y rsync
 
-  - name: Replace repository files
-    run: |
-      rsync -a --delete --exclude='.git/' source/ current/
+      - name: Replace repository files
+        run: rsync -a --delete --exclude='.git/' source/ current/
 
-  - name: Commit and push changes
-    working-directory: current
-    env:
-      GH_TOKEN: ${{ github.token }}
-    run: |
-      git config user.name "github-actions[bot]"
-      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Commit and push
+        working-directory: current
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
 
-      git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
 
-      if git diff --cached --quiet; then
-        echo "No changes to commit."
-        exit 0
-      fi
-
-      git commit -m "Replace repository with upstream Winlator commit 5c199d5"
-      git push origin "HEAD:${GITHUB_REF_NAME}"
+          git commit -m "Replace files with Winlator upstream source"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
