@@ -1,3 +1,4 @@
+
 name: 构建测试apk
 
 on:
@@ -27,14 +28,19 @@ jobs:
           java-version: '17'  
           cache: gradle
 
-      - name: 4 构建 APK  
+      - name: 4 安装指定版本的 CMake (3.22.1)
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.22.1'
+
+      - name: 5 构建 APK  
         run: |  
           pwd  
           ls -la  
           chmod +x ./gradlew  
           ./gradlew assembleDebug  
 
-      - name: 5 上传 APK  
+      - name: 6 上传 APK  
         uses: actions/upload-artifact@v4  
         with:  
           name: winlator-debug  
